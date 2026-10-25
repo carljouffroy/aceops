@@ -51,8 +51,8 @@ Intake ─▶ BRD ─▶ Dispatch ─▶ Board                                  
 
 1. `main` has only the scaffold and `bundle.json`; all contracts and code are on `integration`.
    `feat/sdlc` is cut from `main` as asked and adds new files only, so it can't conflict.
-2. `contracts/CHANGELOG.md` exists only on `integration`; the SDLC entry is in
-   `contracts/sdlc/CHANGELOG-entry.md` until `feat/sdlc` is rebased.
+2. `feat/sdlc` was re-based on `integration` once it existed, so the SDLC section sits in
+   `contracts/CHANGELOG.md` as Carl asked.
 3. Nothing in code stops `INTERNAL_LLM_BASE_URL` from pointing at a cloud host; only
    `.env.example` comments say not to. The SDLC service will refuse non-loopback URLs, and the
    same three lines could go into `src/internal/llm.py` (proposal, Carl's call).

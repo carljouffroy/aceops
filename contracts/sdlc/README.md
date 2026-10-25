@@ -24,7 +24,10 @@ full ticket doesn't, because that schema sets `additionalProperties: false`. Tha
 normalises rows rather than validating them.
 
 SDLC fields: `spec_id`, `spec_version`, `source_work_item_id`, `stage`, `assignee`,
-`acceptance_criteria`, `depends_on`, `evidence`, `agent_draft`, `review`, `release`, `provenance`.
+`acceptance_criteria` (each with the pre-check `result` and `note`), `depends_on`, `waiting_on`
+(why the ticket can't enter build yet, rebuilt on every sync), `evidence`, `agent_draft`, `review`,
+`release`, `provenance`. Specs carry `client_signoff_required`, set when the section's work touches
+the client's ad account, feed or store; gate G4 then needs the client's sign-off.
 
 `stage` is the SDLC position; `status` uses the board's enum and is derived from it:
 
@@ -81,3 +84,6 @@ Rules enforced in code (not expressible in JSON Schema):
 `specs.sample.json` has SPEC-003 (R, approved) and SPEC-005 (F, draft, waiting on gaps A2 and F5;
 it depends on SPEC-002, which isn't in the sample). `tickets.sample.json` has SPEC-003's five
 tickets at different stages. People's names are fictional.
+
+The runtime (`src/sdlc`) writes the same shapes to `data/out/sdlc/`; `src/sdlc/tests/test_flow.py`
+validates a full run against these schemas, so the contracts and the code can't drift apart.

@@ -36,34 +36,43 @@ It runs as a restarting background service, like the internal agent's `--live` m
 
 ## Agent tools (SDLC MCP server)
 
+As built in `src/sdlc/mcp_server.py` (one client per console source today; `client` is implicit):
+
 | Tool | Inputs | Output | Stage | Refuses when |
 |---|---|---|---|---|
-| `read_brd` | `client` | `{sections: {P..ST: markdown}, open_gaps: [{source_item_id, text}]}` from `data/out/brd.md` | Spec | BRD missing |
-| `list_work_items` | `client`, `role?` | work items from `data/out/work_items.json` | Spec | — |
-| `draft_spec` | `client`, `work_item_ids[]`, `title?` | spec with `status: draft` | Spec | ids unknown; output fails the schema |
-| `revise_spec` | `spec_id`, `changes` | updated draft, or a new version if the spec was approved | Spec | spec rejected or superseded |
-| `split_spec` | `spec_id` | tickets with `stage: tickets` | Tickets | spec not approved |
-| `list_tickets` | `client`, `role?`, `stage?` | tickets | any | — |
-| `draft_artifact` | `ticket_id` | `{path}` under `data/out/sdlc/drafts/` | Build | ticket not in build |
-| `precheck` | `ticket_id` | `[{ac_id, result: met \| not_met \| needs_human, reason}]` | Review | ticket not in review; no evidence |
-| `draft_release` | `spec_id` | `{release_id, notes, client_summary}` | Release | any ticket not approved |
-| `build_status` | `client` | status report | Status | — |
+| `read_brd` | — | `{client, markdown, open_gaps[]}` from `data/out/brd.md` | Spec | — |
+| `list_work_items` | `role?` | work items from `data/out/work_items.json` | Spec | — |
+| `list_specs` | — | all specs with status and what they wait on | Spec | — |
+| `draft_spec` | `section` (P, A, R, O, F, D, C, ST) | the draft spec for that section | Spec | section has no answered task |
+| `split_spec` | `spec_id` | the tickets of an approved spec | Tickets | spec not approved: *only the project owner can approve it* |
+| `list_tickets` | `role?`, `stage?` | tickets | any | — |
+| `draft_artifact` | `ticket_id` | `{ticket_id, path, markdown}` under `data/out/sdlc/drafts/` | Build | ticket not accepted yet |
+| `precheck` | `ticket_id` | `[{id, text, verified_by, result: met \| not_met \| needs_human, note}]` | Review | — (advice; a reviewer decides) |
+| `draft_release` | `spec_id` | `{notes, client_summary}` | Release | no reviewed tickets waiting |
+| `build_status` | — | status report incl. the draft client update | Status | — |
+
+Specs are revised by the agent itself: a rejected spec is re-drafted as the next version on the
+next sync, with the rejection reason kept in `risks`.
 
 Every write is validated against the schema before it is saved; a failing write is rejected and
 logged, not repaired silently.
 
 ## Human gates (SDLC admin API, called by the board)
 
+As built in `src/sdlc/api.py` and `gates.py`. Every write needs the `X-ACE-Console: 1` header and an
+`actor` who is on the team (`sdlc.config.DEFAULT_TEAM`); the role check is server-side.
+
 | Gate | Endpoint | Who | Checks in code |
 |---|---|---|---|
-| G1 | `POST /specs/{id}/approve` `{by, note}` · `POST /specs/{id}/reject` `{by, reason}` | project owner | spec is a draft |
-| G2 | `POST /tickets/{id}/accept` `{by}` | someone in the ticket's role | ticket in `tickets` |
-| Build exit | `POST /tickets/{id}/evidence` `{kind, ref, by}` | the assignee | ticket in `build`, dependencies passed review, not blocked on client |
-| G3 | `POST /tickets/{id}/review` `{reviewer, decision, notes}` | reviewer in the same role | reviewer ≠ assignee (409 otherwise) |
-| G4 | `POST /releases` `{spec_id, approved_by, client_signoff, notes}` | project owner | every ticket approved; `client_signoff` present when the spec spends money, goes public or touches client production |
-| G5 | `POST /status/{client}/send` `{by}` | project owner | draft exists; queues approved follow-up questions for intake |
+| G1 | `POST /api/specs/{id}/approve` `{actor, note?}` · `POST /api/specs/{id}/reject` `{actor, reason}` | project owner (403 otherwise) | spec is a draft (409); a rejection needs a reason (422) |
+| G2 | `POST /api/tickets/{id}/accept` `{actor}` | someone in the ticket's role (403) | ticket in `tickets` and unassigned (409) |
+| Build | `PUT /api/tickets/{id}/draft` `{actor, text}` · `POST /api/tickets/{id}/submit` `{actor, kind, ref?}` | the assignee (403) | ticket in `build`; evidence defaults to the draft path |
+| G3 | `POST /api/tickets/{id}/review` `{actor, decision, notes?}` | same role, not the builder (409 *reviewer must differ from the builder*) | `changes_requested` needs notes (422); `approved` refused while any pre-check is `not_met` (409) |
+| G4 | `POST /api/releases` `{actor, spec_id, client_signoff?, notes?}` | project owner | reviewed tickets exist (409); `client_signoff` required when the spec touches the client's ad account, feed or store (422) |
+| G5 | `PUT /api/status/draft` `{actor, text}` · `POST /api/status/send` `{actor}` | project owner | not already sent for the current state (409); follow-up questions go to the outbox |
 
-Plus `GET /events` so the board can refresh, as it does for intake progress.
+Plus `GET /api/state` (the whole view), `GET /api/drafts/{ticket_id}`, `GET /api/brd`, `POST /api/agent/run`,
+`POST /api/source {source}` and `POST /api/reset`. The console polls `/api/state` every 2 s.
 
 ## What the agent does, per stage
 
