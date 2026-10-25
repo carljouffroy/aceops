@@ -25,15 +25,25 @@ def create_admin(db: Database, admin_token: str) -> FastAPI:
         return {"id": client_id, "invitation_token": invitation_token}
 
     @app.get("/admin/clients/{client_id}/events")
-    def client_events(client_id: str, _: None = Depends(require_admin)) -> list[dict]:
+    def client_events(
+        client_id: str,
+        since: int | None = None,
+        _: None = Depends(require_admin),
+    ) -> list[dict]:
         if not db.client_exists(client_id):
             raise HTTPException(status_code=404, detail="Client not found")
-        return db.events_for(client_id)
+        return db.events_for(client_id, since=since)
 
     @app.get("/admin/clients/{client_id}/answers")
-    def client_answers(client_id: str, _: None = Depends(require_admin)) -> list[dict]:
+    def client_answers(
+        client_id: str,
+        history: bool = False,
+        _: None = Depends(require_admin),
+    ) -> list[dict]:
         if not db.client_exists(client_id):
             raise HTTPException(status_code=404, detail="Client not found")
+        if history:
+            return db.answer_history(client_id)
         return db.answers_for(client_id)
 
     return app
