@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -173,6 +174,21 @@ async def _submit(client: Client, item_id: str, answer: dict[str, str]) -> None:
         raise RuntimeError(text or "submit_answer failed")
 
 
+def scripted_mode() -> bool:
+    return os.environ.get("DEMO_MODE", "").strip().lower() == "scripted"
+
+
+def _refuse_unreachable(base_url: str, detail: str) -> None:
+    target = base_url.strip() or "(unset)"
+    print(
+        f"LLM_BASE_URL is unreachable at {target}\n"
+        f"{detail}\n"
+        "The client did not fall back to scripted answers.\n"
+        "Set DEMO_MODE=scripted to rehearse without a model.",
+        file=sys.stderr,
+    )
+
+
 async def run(
     url: str,
     token: str,
@@ -183,20 +199,23 @@ async def run(
     api_key: str | None = None,
 ) -> str:
     notes = load_persona(persona_path)
-    llm = LocalLLM(
-        base_url or os.environ.get("LLM_BASE_URL", ""),
-        model or os.environ.get("LLM_MODEL", "local"),
-        api_key if api_key is not None else os.environ.get("LLM_API_KEY", ""),
-    )
-    mode = "llm"
-    try:
+    resolved_base = base_url if base_url is not None else os.environ.get("LLM_BASE_URL", "")
+    if scripted_mode():
+        mode = "scripted"
+        llm: LocalLLM | None = None
+    else:
+        llm = LocalLLM(
+            resolved_base,
+            model or os.environ.get("LLM_MODEL", "local"),
+            api_key if api_key is not None else os.environ.get("LLM_API_KEY", ""),
+        )
         try:
             llm.complete("Reply with the JSON object only.\nNote: N/A | ready")
-        except Unreachable:
-            mode = "scripted"
-    finally:
-        if mode == "scripted":
+        except Unreachable as exc:
             llm.close()
+            _refuse_unreachable(resolved_base, str(exc))
+            raise Unreachable(f"LLM_BASE_URL is unreachable at {resolved_base}") from exc
+        mode = "llm"
 
     async with httpx2.AsyncClient(
         headers={"Authorization": f"Bearer {token}"},
@@ -221,13 +240,15 @@ async def run(
                         "reason_if_na": "",
                     }
                 else:
+                    assert llm is not None
                     try:
                         answer = answer_with_model(llm, item, notes)
-                    except Unreachable:
-                        answer = _fallback_na()
+                    except Unreachable as exc:
+                        _refuse_unreachable(llm.base_url, str(exc))
+                        raise
                 print(f"{item['id']} {answer['status']}")
                 await _submit(client, str(item["id"]), answer)
-    if mode == "llm":
+    if llm is not None:
         llm.close()
     print(f"mode: {mode}")
     return mode
@@ -240,9 +261,12 @@ def main() -> None:
     parser.add_argument("--token", required=True, help="Invitation token for one client")
     parser.add_argument("--persona", default=str(PERSONA_PATH))
     args = parser.parse_args()
-    if not os.environ.get("LLM_BASE_URL"):
+    if not scripted_mode() and not os.environ.get("LLM_BASE_URL"):
         raise SystemExit("LLM_BASE_URL is required")
-    asyncio.run(run(args.url, args.token, persona_path=Path(args.persona)))
+    try:
+        asyncio.run(run(args.url, args.token, persona_path=Path(args.persona)))
+    except Unreachable:
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

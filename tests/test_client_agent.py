@@ -11,8 +11,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import httpx
+import pytest
 
-from intake.client_agent import CLIENT_AI_NAME, run
+from intake.client_agent import CLIENT_AI_NAME, Unreachable, run
 from intake.main import main
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,6 +104,7 @@ def _history(admin_url: str, client_id: str) -> list[dict]:
 
 
 def test_stub_llm_stores_injection_text_as_data(tmp_path: Path, monkeypatch: object) -> None:
+    monkeypatch.delenv("DEMO_MODE", raising=False)  # type: ignore[attr-defined]
     mcp_url, admin_url, client_id, token = _start_intake(tmp_path, monkeypatch)
     stub = _start_stub()
     host, port = stub.server_address[:2]
@@ -135,7 +137,19 @@ def test_stub_llm_stores_injection_text_as_data(tmp_path: Path, monkeypatch: obj
     assert sum(1 for text in item_prompts if text.startswith("Item A4 ")) == 2
 
 
-def test_unreachable_llm_uses_scripted_answers(tmp_path: Path, monkeypatch: object) -> None:
+def test_unreachable_llm_fails_loudly(tmp_path: Path, monkeypatch: object, capsys: object) -> None:
+    monkeypatch.delenv("DEMO_MODE", raising=False)  # type: ignore[attr-defined]
+    mcp_url, admin_url, client_id, token = _start_intake(tmp_path, monkeypatch)
+    with pytest.raises(Unreachable, match="unreachable"):
+        asyncio.run(run(mcp_url, token, base_url="http://127.0.0.1:9/v1", model="local", api_key=""))
+    captured = capsys.readouterr()  # type: ignore[attr-defined]
+    assert "LLM_BASE_URL is unreachable at http://127.0.0.1:9/v1" in captured.err
+    assert "did not fall back" in captured.err
+    assert _history(admin_url, client_id) == []
+
+
+def test_demo_mode_scripted_skips_the_model(tmp_path: Path, monkeypatch: object) -> None:
+    monkeypatch.setenv("DEMO_MODE", "scripted")  # type: ignore[attr-defined]
     mcp_url, admin_url, client_id, token = _start_intake(tmp_path, monkeypatch)
     mode = asyncio.run(run(mcp_url, token, base_url="http://127.0.0.1:9/v1", model="local", api_key=""))
     assert mode == "scripted"
