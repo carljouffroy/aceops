@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>ACE Ops</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1c1915;
+      --muted: #6f6a63;
+      --line: #ece7df;
+      --line-strong: #e3ddd3;
+      --paper: #ffffff;
+      --page: #f3f1ec;
+      --header: #141311;
+      --warm: #f2f0ec;
+      --brass: #c5a059;
+      --brass-ink: #6d5314;
+      --brass-soft: #f4e7c8;
+      --todo-bg: #eceae6;
+      --todo-ink: #3f3c38;
+      --progress-bg: #d6e6fb;
+      --progress-ink: #163e75;
+      --blocked-bg: #f8d4d0;
+      --blocked-ink: #8d2218;
+      --done-bg: #d3efd4;
+      --done-ink: #0f6a32;
+      --ready: #3dce7a;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--page);
+      color: var(--ink);
+      font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    button, input, select { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+    header {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto auto;
+      gap: 28px;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--header);
+      color: var(--warm);
+    }
+    .eyebrow {
+      margin: 0 0 4px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--brass);
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 560;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .intake-top {
+      display: flex;
+      justify-content: space-between;
+      width: 200px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #c8c2b8;
+    }
+    .intake-top strong { color: var(--warm); font-weight: 650; font-variant-numeric: tabular-nums; }
+    .bar {
+      width: 200px;
+      height: 6px;
+      border-radius: 999px;
+      background: #2c2924;
+      overflow: hidden;
+    }
+    .bar-fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--brass);
+    }
+    .ready {
+      justify-self: end;
+      margin: 0;
+      padding: 6px 12px;
+      border: 1px solid #3c3832;
+      border-radius: 999px;
+      background: transparent;
+      color: #c8c2b8;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+    .ready.is-go {
+      border-color: var(--ready);
+      background: var(--ready);
+      color: #073018;
+    }
+    .notice {
+      margin: 0;
+      padding: 6px 24px;
+      background: #f8e4e1;
+      color: var(--blocked-ink);
+    }
+    .notice:empty { display: none; }
+    .toolbar {
+      display: flex;
+      align-items: stretch;
+      gap: 2px;
+      height: 44px;
+      padding: 0 12px 0 8px;
+      background: var(--paper);
+      border-bottom: 1px solid var(--line-strong);
+    }
+    .tab {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      height: 44px;
+      padding: 0 12px;
+      color: var(--muted);
+      font-weight: 550;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab[aria-selected="true"] {
+      color: var(--ink);
+      box-shadow: inset 0 -2px 0 var(--brass);
+    }
+    .mine {
+      margin-left: 6px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--brass-soft);
+      color: var(--brass-ink);
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .count {
+      margin-left: 6px;
+      color: #8d877e;
+      font-weight: 550;
+      font-variant-numeric: tabular-nums;
+    }
+    .tab[aria-selected="true"] .count { color: var(--muted); }
+    .search {
+      margin-left: auto;
+      align-self: center;
+      width: 240px;
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid #e0dbd2;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .grid-scroll { flex: 1; overflow: auto; background: var(--paper); }
+    table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+    th, td {
+      height: 34px;
+      padding: 0 8px;
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid #f4f1eb;
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    th:last-child, td:last-child { border-right: 0; }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      height: 36px;
+      background: #f7f6f3;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    tbody tr:hover td { background: #faf8f4; }
+    tr.is-blocked td.task { box-shadow: inset 3px 0 0 #e7b4ae; }
+    td span.clip, th .clip {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    td.task span.clip { max-width: 300px; font-weight: 550; }
+    td.answer span.clip { max-width: 260px; }
+    td.who span.clip { max-width: 360px; color: #3f3c38; }
+    td.task, th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: #fff;
+    }
+    th:first-child { z-index: 3; background: #f7f6f3; }
+    tbody tr:hover td.task { background: #faf8f4; }
+    .empty { color: #b7b1a8; font-weight: 450; }
+    .pri.on {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--brass-soft);
+      color: var(--brass-ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .chip-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      border-radius: 4px;
+    }
+    .chip-wrap select {
+      appearance: none;
+      border: 0;
+      height: 22px;
+      margin: 0;
+      padding: 0 18px 0 8px;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .caret {
+      position: absolute;
+      right: 7px;
+      width: 0;
+      height: 0;
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-top: 4px solid currentColor;
+      pointer-events: none;
+    }
+    .chip-todo { background: var(--todo-bg); color: var(--todo-ink); }
+    .chip-progress { background: var(--progress-bg); color: var(--progress-ink); }
+    .chip-blocked { background: var(--blocked-bg); color: var(--blocked-ink); }
+    .chip-done { background: var(--done-bg); color: var(--done-ink); }
+    .blank {
+      margin: 0;
+      padding: 28px 24px;
+      color: var(--muted);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+    @media (max-width: 860px) {
+      header { grid-template-columns: 1fr; gap: 12px; }
+      .ready { justify-self: start; }
+      .toolbar { overflow-x: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">ACE Ops</p>
+      <h1 id="client-name">Client</h1>
+    </div>
+    <div>
+      <div class="intake-top">
+        <span>Intake</span>
+        <strong id="intake-count">0 / 0</strong>
+      </div>
+      <div class="bar" id="intake-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Intake progress">
+        <span class="bar-fill" id="intake-fill"></span>
+      </div>
+    </div>
+    <p id="ready" class="ready">Ready to start</p>
+  </header>
+  <p id="notice" class="notice" role="status"></p>
+  <div class="toolbar">
+    <button class="tab" type="button" data-view="all" aria-selected="true">All <span class="count" data-count="all">0</span></button>
+    <button class="tab" type="button" data-view="Marketing Specialist" aria-selected="false">Marketing Specialist <span class="count" data-count="Marketing Specialist">0</span></button>
+    <button class="tab" type="button" data-view="Data Analyst" aria-selected="false">Data Analyst <span class="count" data-count="Data Analyst">0</span></button>
+    <button class="tab" type="button" data-view="Developer" aria-selected="false">Developer <span class="mine">My plate</span> <span class="count" data-count="Developer">0</span></button>
+    <button class="tab" type="button" data-view="blocked" aria-selected="false">Blocked on client <span class="count" data-count="blocked">0</span></button>
+    <input id="search" class="search" type="search" placeholder="Search" autocomplete="off" aria-label="Search tasks and answers">
+  </div>
+  <div class="grid-scroll" id="grid-scroll">
+    <table>
+      <caption class="sr-only">Work items</caption>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Role</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Due</th>
+          <th>Source ID</th>
+          <th>Client answer</th>
+          <th>Answered by</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p id="blank" class="blank" hidden>Nothing in this view.</p>
+  </div>
+  <noscript>This board needs JavaScript running on this machine. It does not load fonts or scripts from the network.</noscript>
+  <script>
+    const STATUSES = ["To do", "In progress", "Blocked", "Done"];
+    const CHIP = {
+      "To do": "chip-todo",
+      "In progress": "chip-progress",
+      "Blocked": "chip-blocked",
+      "Done": "chip-done"
+    };
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const clientName = document.getElementById("client-name");
+    const intakeCount = document.getElementById("intake-count");
+    const intakeBar = document.getElementById("intake-bar");
+    const intakeFill = document.getElementById("intake-fill");
+    const ready = document.getElementById("ready");
+    const notice = document.getElementById("notice");
+    const rows = document.getElementById("rows");
+    const blank = document.getElementById("blank");
+    const scroller = document.getElementById("grid-scroll");
+    const search = document.getElementById("search");
+    let view = "all";
+    let query = "";
+    let latest = [];
+    let signature = "";
+
+    function stamp(value) {
+      if (!value) return "";
+      const match = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(String(value));
+      if (!match) return String(value);
+      const day = String(Number(match[3]));
+      const month = MONTHS[Number(match[2]) - 1] || match[2];
+      const date = day + " " + month + " " + match[1];
+      if (!match[4]) return date;
+      return date + ", " + match[4] + ":" + match[5];
+    }
+
+    function clip(cell, text, full) {
+      const label = document.createElement("span");
+      label.className = "clip";
+      const shown = text == null || text === "" ? "—" : String(text);
+      label.textContent = shown;
+      if (shown === "—") label.className = "clip empty";
+      if (full) label.title = String(full);
+      cell.appendChild(label);
+    }
+
+    function inView(item) {
+      if (view === "blocked") return item.blocked_on_client === true;
+      if (view !== "all" && item.role !== view) return false;
+      if (!query) return true;
+      const hay = [item.title, item.role, item.source_item_id, item.client_answer, item.answered_by, item.client_ai_name, item.status]
+        .filter(function (part) { return part; })
+        .join("\n")
+        .toLowerCase();
+      return hay.indexOf(query) !== -1;
+    }
+
+    function paintChrome(data) {
+      const items = data.items || [];
+      clientName.textContent = data.client_name || "Client";
+      const answered = Number(data.progress && data.progress.answered) || 0;
+      const total = Number(data.progress && data.progress.total) || 0;
+      const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((answered / total) * 100))) : 0;
+      intakeCount.textContent = answered + " / " + total;
+      intakeFill.style.width = pct + "%";
+      intakeBar.setAttribute("aria-valuenow", String(pct));
+      const open = data.progress && data.progress.priority_gate_done === true;
+      ready.className = open ? "ready is-go" : "ready";
+      ready.textContent = "Ready to start";
+      const counts = {
+        all: items.length,
+        blocked: items.filter(function (item) { return item.blocked_on_client === true; }).length
+      };
+      items.forEach(function (item) {
+        counts[item.role] = (counts[item.role] || 0) + 1;
+      });
+      document.querySelectorAll("[data-count]").forEach(function (node) {
+        const key = node.getAttribute("data-count");
+        node.textContent = String(counts[key] || 0);
+      });
+    }
+
+    function paintRows() {
+      const top = scroller.scrollTop;
+      const left = scroller.scrollLeft;
+      rows.replaceChildren();
+      const visible = latest.filter(inView);
+      visible.forEach(function (item) {
+        const row = document.createElement("tr");
+        if (item.blocked_on_client) row.className = "is-blocked";
+
+        const task = document.createElement("td");
+        task.className = "task";
+        clip(task, item.title, item.title);
+        row.appendChild(task);
+
+        const role = document.createElement("td");
+        clip(role, item.role, item.role);
+        row.appendChild(role);
+
+        const priority = document.createElement("td");
+        const pri = document.createElement("span");
+        pri.className = item.priority ? "pri on" : "pri empty";
+        pri.textContent = item.priority ? "High" : "—";
+        priority.appendChild(pri);
+        row.appendChild(priority);
+
+        const statusCell = document.createElement("td");
+        const wrap = document.createElement("span");
+        wrap.className = "chip-wrap " + (CHIP[item.status] || "chip-todo");
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Status");
+        STATUSES.forEach(function (status) {
+          const option = document.createElement("option");
+          option.value = status;
+          option.textContent = status;
+          if (status === item.status) option.selected = true;
+          select.appendChild(option);
+        });
+        select.addEventListener("change", function () {
+          wrap.className = "chip-wrap " + (CHIP[select.value] || "chip-todo");
+          saveStatus(item.id, select.value, select);
+        });
+        const caret = document.createElement("span");
+        caret.className = "caret";
+        caret.setAttribute("aria-hidden", "true");
+        wrap.appendChild(select);
+        wrap.appendChild(caret);
+        statusCell.appendChild(wrap);
+        row.appendChild(statusCell);
+
+        const due = document.createElement("td");
+        clip(due, item.due ? stamp(item.due) : "", item.due || "");
+        row.appendChild(due);
+
+        const source = document.createElement("td");
+        clip(source, item.source_item_id, item.source_item_id);
+        row.appendChild(source);
+
+        const answer = document.createElement("td");
+        answer.className = "answer";
+        clip(answer, item.client_answer, item.client_answer);
+        row.appendChild(answer);
+
+        const who = document.createElement("td");
+        who.className = "who";
+        const person = item.client_ai_name || item.answered_by || "";
+        const when = stamp(item.ts);
+        let whoText = "";
+        if (person && when) whoText = person + " · " + when;
+        else whoText = person || when;
+        clip(who, whoText, whoText);
+        row.appendChild(who);
+
+        rows.appendChild(row);
+      });
+      blank.hidden = visible.length !== 0;
+      scroller.scrollTop = top;
+      scroller.scrollLeft = left;
+    }
+
+    async function saveStatus(id, status, select) {
+      select.disabled = true;
+      try {
+        const response = await fetch("/api/items/" + encodeURIComponent(id), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: status })
+        });
+        if (!response.ok) throw new Error("save failed");
+        notice.textContent = "";
+        signature = "";
+        await load(true);
+      } catch (error) {
+        notice.textContent = "Status was not saved.";
+        signature = "";
+        await load(true);
+      } finally {
+        select.disabled = false;
+      }
+    }
+
+    async function load(force) {
+      if (!force && document.activeElement && document.activeElement.tagName === "SELECT") return;
+      try {
+        const response = await fetch("/api/board", { cache: "no-store" });
+        if (!response.ok) throw new Error("load failed");
+        const data = await response.json();
+        const next = JSON.stringify(data);
+        latest = Array.isArray(data.items) ? data.items : [];
+        paintChrome(data);
+        if (next !== signature) {
+          signature = next;
+          paintRows();
+        }
+        if (notice.textContent.indexOf("could not refresh") !== -1) notice.textContent = "";
+      } catch (error) {
+        notice.textContent = "The board could not refresh.";
+      }
+    }
+
+    document.querySelectorAll(".tab").forEach(function (button) {
+      button.addEventListener("click", function () {
+        view = button.getAttribute("data-view") || "all";
+        document.querySelectorAll(".tab").forEach(function (tab) {
+          tab.setAttribute("aria-selected", tab === button ? "true" : "false");
+        });
+        paintRows();
+      });
+    });
+    search.addEventListener("input", function () {
+      query = search.value.trim().toLowerCase();
+      paintRows();
+    });
+    load();
+    setInterval(load, 3000);
+  </script>
+</body>
+</html>

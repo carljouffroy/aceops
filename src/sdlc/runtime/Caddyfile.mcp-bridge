@@ -1,0 +1,57 @@
+# ACE Ops MCP bridge for the OpenShell sandbox on the GB10.
+# Used by docs/sdlc/gb10-runbook.md, section 6.
+#
+# Why this exists:
+# - The intake MCP (127.0.0.1:8787) and SDLC MCP (127.0.0.1:8791) bind host loopback only.
+#   A sandbox cannot reach host loopback. NemoClaw/OpenShell expose the host to the sandbox
+#   as host.openshell.internal, which resolves to the openshell-docker bridge gateway IP.
+#   This config listens on that bridge IP only (never 0.0.0.0) and forwards /mcp to loopback.
+# - The official MCP Python SDK turns on DNS-rebinding protection when a server binds
+#   127.0.0.1. It answers 421 "Invalid Host header" unless Host is 127.0.0.1:*, localhost:*
+#   or [::1]:* (mcp/server/lowlevel/server.py, streamable_http_app). Caddy passes the client's
+#   Host through by default, so each block overwrites Host and drops Origin.
+#
+# Usage (as your normal user; ports above 1024 need no sudo):
+#   export BRIDGE_IP=<IP that host.openshell.internal resolves to inside the sandbox>
+#   caddy validate --config src/sdlc/runtime/Caddyfile.mcp-bridge --adapter caddyfile
+#   caddy run      --config src/sdlc/runtime/Caddyfile.mcp-bridge --adapter caddyfile
+# If BRIDGE_IP is unset, "bind" gets no argument and Caddy refuses to start. That is intended.
+#
+# Docs: https://caddyserver.com/docs/caddyfile/concepts      ({$ENV} substitution, ":port" site address)
+#       https://caddyserver.com/docs/caddyfile/options       (admin off, auto_https off)
+#       https://caddyserver.com/docs/caddyfile/directives/reverse_proxy (header_up, flush_interval)
+
+{
+	admin off
+	auto_https off
+}
+
+# intake MCP. Sandbox URL: http://host.openshell.internal:28787/mcp
+:28787 {
+	bind {$BRIDGE_IP}
+	handle /mcp {
+		reverse_proxy 127.0.0.1:8787 {
+			header_up Host 127.0.0.1:8787
+			header_up -Origin
+			flush_interval -1
+		}
+	}
+	handle {
+		respond "not found" 404
+	}
+}
+
+# SDLC MCP. Sandbox URL: http://host.openshell.internal:28791/mcp
+:28791 {
+	bind {$BRIDGE_IP}
+	handle /mcp {
+		reverse_proxy 127.0.0.1:8791 {
+			header_up Host 127.0.0.1:8791
+			header_up -Origin
+			flush_interval -1
+		}
+	}
+	handle {
+		respond "not found" 404
+	}
+}

@@ -1,0 +1,68 @@
+# NemoClaw custom network-policy preset for ACE Ops (GB10 hackathon).
+# Used by docs/sdlc/gb10-runbook.md, section 6.4.
+#
+# Lets the OpenClaw gateway (Node) inside the sandbox reach ONLY these two endpoints, path /mcp,
+# over plain HTTP through the host bridge (Caddyfile.mcp-bridge in this folder):
+#   http://host.openshell.internal:28787/mcp  ->  127.0.0.1:8787/mcp  (intake MCP)
+#   http://host.openshell.internal:28791/mcp  ->  127.0.0.1:8791/mcp  (SDLC MCP)
+# The admin APIs (8788, 8792) and the board (8790) stay unreachable from the sandbox.
+# Everything else stays denied: NemoClaw sandboxes are deny-by-default.
+#
+# allowed_ips: NemoClaw rejects user-authored allowed_ips for every host except the
+# sandbox-to-host bridge name host.openshell.internal (src/lib/policy/index.ts,
+# networkPoliciesHasAllowedIps). OpenShell's SSRF guard needs it because the bridge is a
+# private IP. The ranges are copied from NemoClaw's own local-inference preset. You can
+# narrow them to your bridge IP, for example 172.18.0.1/32.
+#
+# binaries: the process that opens the connection. OpenClaw runs on Node; curl is listed so
+# you can test the route from a sandbox shell. If `openshell term` shows a denied request
+# from another binary path, add that path here and re-apply.
+#
+# Preview, then apply (sandbox name "aceops" as in the runbook):
+#   nemoclaw aceops policy add --from-file src/sdlc/runtime/aceops-mcp-bridge.yaml --dry-run
+#   nemoclaw aceops policy add --from-file src/sdlc/runtime/aceops-mcp-bridge.yaml --yes
+# Remove:
+#   nemoclaw aceops policy remove aceops-mcp-bridge --yes
+#
+# Sources:
+#   https://docs.nvidia.com/nemoclaw/latest/user-guide/openclaw/network-policy/configure-policies/create-custom-policy-presets
+#   https://docs.nvidia.com/nemoclaw/latest/user-guide/openclaw/reference/troubleshooting#agent-cannot-reach-a-host-side-http-service
+#   https://github.com/NVIDIA/NemoClaw/blob/v0.0.137/nemoclaw-blueprint/policies/presets/local-inference.yaml
+
+preset:
+  name: aceops-mcp-bridge
+  description: "ACE Ops intake and SDLC MCP servers through the host bridge (/mcp only)"
+
+network_policies:
+  aceops_mcp_bridge:
+    name: aceops_mcp_bridge
+    endpoints:
+      - host: host.openshell.internal
+        port: 28787
+        protocol: rest
+        enforcement: enforce
+        allowed_ips:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+        rules:
+          - allow: { method: GET, path: "/mcp" }
+          - allow: { method: POST, path: "/mcp" }
+          - allow: { method: DELETE, path: "/mcp" }
+      - host: host.openshell.internal
+        port: 28791
+        protocol: rest
+        enforcement: enforce
+        allowed_ips:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+        rules:
+          - allow: { method: GET, path: "/mcp" }
+          - allow: { method: POST, path: "/mcp" }
+          - allow: { method: DELETE, path: "/mcp" }
+    binaries:
+      - { path: /usr/local/bin/openclaw }
+      - { path: /usr/local/bin/node }
+      - { path: /usr/bin/node }
+      - { path: /usr/bin/curl }

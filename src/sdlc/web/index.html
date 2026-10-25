@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'">
+  <title>ACE Ops Delivery</title>
+  <style>/*__THEME__*/</style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow">ACE OPS</p>
+      <h1 id="client">Loading…</h1>
+      <div class="flow">Intake → BRD → Spec → Tickets → Build → Review → Release → Status &nbsp;·&nbsp; the agent drafts, people decide</div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Data source">
+        <button type="button" data-source="live" aria-pressed="false">Live intake</button>
+        <button type="button" data-source="sample" aria-pressed="false">Northline sample</button>
+      </div>
+      <span class="chip-dark" id="local" title="Where the model runs"><span class="dot"></span><span>On this machine</span></span>
+      <span class="chip-dark" id="agent"><span class="dot pulse"></span><span>Agent starting…</span></span>
+      <button type="button" class="btn-dark" id="run">Run agent</button>
+      <div class="persona"><label for="persona">Acting as</label><select id="persona"></select></div>
+    </div>
+  </header>
+  <section class="pipeline" id="pipeline" aria-label="Pipeline"></section>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <main id="main"></main>
+  <footer class="bar-bottom" id="foot"></footer>
+
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true"></aside>
+  <div class="modal" id="modal" aria-hidden="true"><div class="box" id="modal-box" role="dialog" aria-modal="true"></div></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script>
+  "use strict";
+  const STAGES = ["tickets", "build", "review", "release", "done"];
+  const STAGE_LABEL = { tickets: "To accept", build: "Build", review: "Review", release: "Release", done: "Done" };
+  const STAGE_HINT = { tickets: "G2 · role accepts", build: "agent drafts", review: "G3 · peer approves", release: "G4 · owner ships", done: "delivered" };
+  const ROLE_CLASS = { "Marketing Specialist": "ms", "Data Analyst": "da", "Developer": "dev", "Project owner": "po" };
+  const S = { data: null, version: -1, sync: null, tab: "specs", persona: null, filter: "all", specFilter: "all", drawer: null, editing: false, editText: "", drafts: {}, pending: false, busy: null, brd: null, feed: "all", updateEditing: false, updateText: "" };
+
+  function store(key, value) { try { if (value === undefined) return localStorage.getItem(key); localStorage.setItem(key, value); } catch (e) { return null; } }
+  S.persona = store("aceops.persona") || "Avery Park";
+  S.tab = store("aceops.tab") || "specs";
+
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k === "text") el.textContent = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else if (k === "style") el.setAttribute("style", v);
+      else el.setAttribute(k, v === true ? "" : String(v));
+    }
+    for (const kid of kids.flat()) {
+      if (kid === null || kid === undefined || kid === false) continue;
+      el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+    }
+    return el;
+  }
+  const $ = (id) => document.getElementById(id);
+
+  function hue(name) { let x = 0; for (const c of String(name)) x = (x * 31 + c.charCodeAt(0)) % 360; return x; }
+  function avatar(name, cls) {
+    if (!name) return h("span", { class: "av", style: "background:#d9d3c9;color:#6f6a63", title: "Unassigned" }, "?");
+    const initials = name.split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+    return h("span", { class: "av " + (cls || ""), style: cls ? null : `background:hsl(${hue(name)} 45% 42%)`, title: name }, initials);
+  }
+  function roleTag(role) { return h("span", { class: "role " + (ROLE_CLASS[role] || "po") }, role); }
+  function ago(iso) {
+    if (!iso) return "never";
+    const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+    if (s < 5) return "just now"; if (s < 60) return s + "s ago";
+    const m = Math.round(s / 60); if (m < 60) return m + "m ago";
+    const hrs = Math.round(m / 60); return hrs < 24 ? hrs + "h ago" : Math.round(hrs / 24) + "d ago";
+  }
+  function me() { return (S.data && S.data.team.find((p) => p.name === S.persona)) || { name: S.persona, role: "" }; }
+  function isOwner() { return me().role === (S.data && S.data.owner_role); }
+  function specById(id) { return S.data.specs.find((s) => s.id === id); }
+  function ticketById(id) { return S.data.tickets.find((t) => t.id === id); }
+  function secOf(spec) { return (spec.brd_sections || [""])[0]; }
+
+  // ---------- markdown (text only, no HTML from data) ----------
+  function inline(text) {
+    const out = []; const re = /(\*\*[^*]+\*\*|`[^`]+`|_[^_]+_$)/g; let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) out.push(text.slice(last, m.index));
+      const t = m[0];
+      if (t.startsWith("**")) out.push(h("strong", null, t.slice(2, -2)));
+      else if (t.startsWith("`")) out.push(h("code", null, t.slice(1, -1)));
+      else out.push(h("em", null, t.slice(1, -1)));
+      last = m.index + t.length;
+    }
+    if (last < text.length) out.push(text.slice(last));
+    return out;
+  }
+  function md(src) {
+    const root = h("div", { class: "md" }); const lines = String(src || "").split("\n"); let i = 0;
+    const cells = (l) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+    while (i < lines.length) {
+      const line = lines[i];
+      if (!line.trim()) { i++; continue; }
+      let m;
+      if ((m = /^(#{1,3})\s+(.*)$/.exec(line))) { root.append(h("h" + m[1].length, null, inline(m[2]))); i++; continue; }
+      if (line.startsWith(">")) { const q = h("blockquote"); while (i < lines.length && lines[i].startsWith(">")) { q.append(h("div", null, inline(lines[i].replace(/^>\s?/, "")))); i++; } root.append(q); continue; }
+      if (line.trim().startsWith("|")) {
+        const rows = []; while (i < lines.length && lines[i].trim().startsWith("|")) { rows.push(lines[i]); i++; }
+        const table = h("table"); const head = cells(rows[0]);
+        table.append(h("thead", null, h("tr", null, head.map((c) => h("th", null, c)))));
+        const body = h("tbody");
+        rows.slice(1).filter((r) => !/^\|?\s*-{2,}/.test(r.trim().replace(/^\|/, ""))).forEach((r) => body.append(h("tr", null, cells(r).map((c) => h("td", { class: c.startsWith("≈") ? "derived" : null }, c)))));
+        table.append(body); root.append(table); continue;
+      }
+      if (/^\s*[-*]\s+/.test(line)) { const ul = h("ul"); while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { const t = lines[i].replace(/^\s*[-*]\s+/, ""); ul.append(h("li", null, t.startsWith("[ ] ") ? ["☐ ", ...inline(t.slice(4))] : t.startsWith("[x] ") ? ["☑ ", ...inline(t.slice(4))] : inline(t))); i++; } root.append(ul); continue; }
+      if (/^\s*\d+\.\s+/.test(line)) { const ol = h("ol"); while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { ol.append(h("li", null, inline(lines[i].replace(/^\s*\d+\.\s+/, "")))); i++; } root.append(ol); continue; }
+      const para = []; while (i < lines.length && lines[i].trim() && !/^(#|>|\||\s*[-*]\s|\s*\d+\.\s)/.test(lines[i])) { para.push(lines[i]); i++; }
+      root.append(h("p", null, inline(para.join(" "))));
+    }
+    return root;
+  }
+
+  // ---------- api ----------
+  async function api(method, path, body) {
+    const res = await fetch(path, { method, headers: { "Content-Type": "application/json", "X-ACE-Console": "1" }, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
+    const ct = res.headers.get("content-type") || "";
+    const payload = ct.includes("json") ? await res.json() : await res.text();
+    if (!res.ok) { const detail = payload && payload.detail; throw new Error(Array.isArray(detail) ? detail.map((d) => d.msg).join("; ") : (detail || res.statusText)); }
+    return payload;
+  }
+  async function act(key, method, path, body, okMsg) {
+    if (S.busy) return;
+    S.busy = key; paintBusy();
+    try {
+      const view = await api(method, path, Object.assign({ actor: S.persona }, body || {}));
+      apply(view, true);
+      if (okMsg) toast(okMsg);
+      return true;
+    } catch (e) { toast(e.message, true); return false; }
+    finally { S.busy = null; paintBusy(); }
+  }
+  function paintBusy() { document.querySelectorAll("[data-busy]").forEach((b) => b.classList.toggle("busy", b.dataset.busy === S.busy)); }
+  function toast(msg, err) {
+    const t = h("div", { class: "toast" + (err ? " err" : "") }, h("b", null, err ? "Blocked" : "Done"), h("span", null, msg));
+    $("toasts").append(t); setTimeout(() => t.remove(), err ? 6500 : 3800);
+  }
+
+  function apply(view, force) {
+    const changed = force || !S.data || view.version !== S.version || view.source !== S.data.source;
+    S.data = view; S.version = view.version; S.sync = view.agent.last_sync;
+    if (!view.team.some((p) => p.name === S.persona)) S.persona = view.team[0].name;
+    if (!changed) { paintAgent(); return; }
+    const active = document.activeElement;
+    if (!force && active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT") && active.closest("#drawer, #main, #modal")) { S.pending = true; paintAgent(); return; }
+    render();
+  }
+  document.addEventListener("focusout", () => setTimeout(() => { if (S.pending && !(document.activeElement && ["TEXTAREA", "INPUT"].includes(document.activeElement.tagName))) { S.pending = false; render(); } }, 50));
+
+  async function poll() {
+    try { apply(await api("GET", "/api/state")); } catch (e) { paintAgent(e.message); }
+    setTimeout(poll, 2000);
+  }
+
+  // ---------- render ----------
+  function render() {
+    paintHeader(); paintPipeline(); paintTabs(); paintMain(); paintDrawer(); paintFoot(); paintBusy();
+  }
+  function paintHeader() {
+    const d = S.data; $("client").textContent = d.client_name;
+    document.querySelectorAll("[data-source]").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.source === d.source)); b.title = d.sources[b.dataset.source] ? "" : "No data yet for this source"; });
+    const sel = $("persona"); sel.replaceChildren(...d.team.map((p) => h("option", { value: p.name, selected: p.name === S.persona }, `${p.name} · ${p.role}`)));
+    const local = $("local"); const a = d.agent;
+    const label = a.error ? "Model blocked: not local" : a.mode === "local_llm" ? `Local model · ${a.model}` : "Rules engine · no model needed";
+    local.replaceChildren(h("span", { class: "dot" + (a.error ? " bad" : "") }), h("span", null, label));
+    local.title = a.error || (a.base_url ? `Model endpoint ${a.base_url} (loopback only)` : "Runs entirely on this machine. Set INTERNAL_LLM_BASE_URL to a 127.0.0.1 model to add model polish.");
+    paintAgent();
+  }
+  function paintAgent(err) {
+    const el = $("agent"); if (!el) return;
+    el.replaceChildren(h("span", { class: "dot pulse" + (err ? " bad" : "") }), h("span", null, err ? "Agent unreachable" : `Agent live · synced ${ago(S.sync)}`));
+  }
+  function paintPipeline() {
+    const d = S.data, T = d.tickets, specs = d.specs;
+    const cnt = (st) => T.filter((t) => t.stage === st).length;
+    const approved = specs.filter((s) => s.status === "approved").length;
+    const status = d.status || {}; const gaps = (status.open_gaps || []).length;
+    const sent = status.client_update && status.client_update.approval;
+    const tiles = [
+      { key: "intake", l: "Intake", n: `${d.intake.answered}/${d.intake.total}`, s: d.intake.priority_gate_done ? "priority items in" : "priority items open", p: d.intake.total ? d.intake.answered / d.intake.total : 0, tab: "brd" },
+      { key: "brd", l: "BRD", n: d.intake.work_items, s: `${d.intake.gaps} gap(s) · work items`, p: d.intake.brd ? 1 : 0, tab: "brd", alert: d.intake.gaps > 0 },
+      { key: "spec", l: "Spec", g: "G1", n: `${approved}/${specs.length}`, s: specs.length - approved ? `${specs.length - approved} awaiting owner` : "all approved", p: specs.length ? approved / specs.length : 0, tab: "specs" },
+      { key: "tickets", l: "Tickets", g: "G2", n: cnt("tickets"), s: `${T.filter((t) => t.stage === "tickets" && !t.assignee).length} unaccepted`, p: T.length ? 1 - cnt("tickets") / T.length : 0, tab: "work", stage: "tickets" },
+      { key: "build", l: "Build", n: cnt("build"), s: "agent drafts ready", p: T.length ? T.filter((t) => STAGES.indexOf(t.stage) > 1).length / T.length : 0, tab: "work", stage: "build" },
+      { key: "review", l: "Review", g: "G3", n: cnt("review"), s: `${T.filter((t) => t.acceptance_criteria.some((c) => c.result === "not_met")).length} failing checks`, p: T.length ? T.filter((t) => STAGES.indexOf(t.stage) > 2).length / T.length : 0, tab: "work", stage: "review", alert: T.some((t) => t.stage === "review" && t.acceptance_criteria.some((c) => c.result === "not_met")) },
+      { key: "release", l: "Release", g: "G4", n: d.releases.length, s: `${cnt("release")} ready · ${cnt("done")} shipped`, p: T.length ? cnt("done") / T.length : 0, tab: "releases" },
+      { key: "status", l: "Status", g: "G5", n: gaps, s: sent ? "update sent" : "update ready to send", p: sent ? 1 : 0.5, tab: "update", alert: gaps > 0 && !sent },
+    ];
+    $("pipeline").replaceChildren(...tiles.map((t) => h("button", { type: "button", class: "stage" + (t.p >= 1 ? " done" : "") + (t.alert ? " alert" : ""), "aria-current": String(S.tab === t.tab && (!t.stage || S.filterStage === t.stage)), onclick: () => { setTab(t.tab); if (t.stage) { S.filterStage = t.stage; } } },
+      h("div", { class: "l" }, h("span", null, t.l), t.g ? h("span", { class: "gate" }, t.g) : null),
+      h("div", { class: "n" }, t.n), h("div", { class: "s" }, t.s), h("div", { class: "meter" }, h("i", { style: `width:${Math.round(Math.min(1, t.p) * 100)}%` })))));
+  }
+  function setTab(tab) { S.tab = tab; store("aceops.tab", tab); render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function paintTabs() {
+    const d = S.data; const drafts = d.specs.filter((s) => s.status === "draft").length;
+    const mine = myPlate().length; const ready = new Set(d.tickets.filter((t) => t.stage === "release").map((t) => t.spec_id)).size;
+    const tabs = [["specs", "Specs", drafts, drafts > 0], ["work", "Work", mine, mine > 0], ["releases", "Releases", ready, ready > 0], ["update", "Client update", (d.status && d.status.open_gaps.length) || 0, false], ["activity", "Activity", null], ["brd", "BRD", null]];
+    const kids = tabs.map(([k, l, c, hot]) => h("button", { role: "tab", "aria-selected": String(S.tab === k), onclick: () => setTab(k) }, l, c !== null && c !== undefined ? h("span", { class: "count" + (hot ? " hot" : "") }, c) : null));
+    kids.push(h("span", { class: "spacer" }));
+    if (S.tab === "work") {
+      const roles = ["all", "mine", "Marketing Specialist", "Data Analyst", "Developer"];
+      kids.push(h("div", { class: "filters" }, roles.map((r) => h("button", { type: "button", class: "pill", "aria-pressed": String(S.filter === r), onclick: () => { S.filter = r; render(); } }, r === "all" ? "Everyone" : r === "mine" ? `My plate (${myPlate().length})` : r)),
+        h("select", { class: "pill", onchange: (e) => { S.specFilter = e.target.value; render(); } }, h("option", { value: "all" }, "All specs"), ...d.specs.filter((s) => s.status === "approved").map((s) => h("option", { value: s.id, selected: S.specFilter === s.id }, `${s.id} ${s.title}`)))));
+    }
+    if (S.tab === "activity") kids.push(h("div", { class: "filters" }, ["all", "agent", "people"].map((f) => h("button", { type: "button", class: "pill", "aria-pressed": String(S.feed === f), onclick: () => { S.feed = f; render(); } }, f === "all" ? "Everything" : f === "agent" ? "Agent" : "People"))));
+    $("tabs").replaceChildren(...kids);
+  }
+  function myPlate() {
+    const p = me(); if (!S.data) return [];
+    if (p.role === S.data.owner_role) return S.data.tickets.filter((t) => t.stage === "release");
+    return S.data.tickets.filter((t) => t.stage !== "done" && ((t.assignee === p.name) || (t.role === p.role && t.stage === "tickets" && !t.assignee) || (t.role === p.role && t.stage === "review" && t.assignee !== p.name)));
+  }
+  function paintMain() {
+    const main = $("main"); const d = S.data;
+    if (!d.intake.work_items) {
+      main.replaceChildren(h("div", { class: "empty card" }, h("h3", null, "Waiting for intake"), h("p", null, "The agent drafts specs as soon as the client's AI starts answering the checklist through the intake MCP server."),
+        h("div", { class: "actions", style: "justify-content:center;margin-top:14px" }, h("button", { class: "btn gold", onclick: () => switchSource("sample") }, "Open the Northline sample"), h("button", { class: "btn", onclick: () => act("run", "POST", "/api/agent/run", {}, "Agent ran.") }, "Check again"))));
+      return;
+    }
+    const view = { specs: viewSpecs, work: viewWork, releases: viewReleases, update: viewUpdate, activity: viewActivity, brd: viewBrd }[S.tab] || viewSpecs;
+    main.replaceChildren(view());
+  }
+
+  // ---------- specs ----------
+  function viewSpecs() {
+    const d = S.data;
+    if (!d.specs.length) return h("div", { class: "empty" }, h("h3", null, "No specs yet"), h("p", null, "A spec appears for every BRD section with at least one answered item."));
+    return h("div", { class: "grid-specs" }, d.specs.map(specCard));
+  }
+  function acRow(c) {
+    const mark = { met: "✓", not_met: "!", needs_human: "?" }[c.result] || { agent_check: "A", human_review: "H", client_confirmation: "C" }[c.verified_by];
+    return h("div", { class: "ac" }, h("span", { class: "ic " + (c.result || c.verified_by), title: c.verified_by.replace("_", " ") }, mark), h("span", null, h("span", { class: "mono", style: "color:var(--faint)" }, c.id + " "), c.text, c.note ? h("span", { class: "note" }, c.note) : null));
+  }
+  function specCard(s) {
+    const sec = secOf(s); const T = S.data.tickets.filter((t) => t.spec_id === s.id); const done = T.filter((t) => t.stage === "done").length;
+    const foot = h("div", { class: "spec-foot" });
+    if (s.status === "draft") {
+      foot.append(h("button", { class: "btn ok", "data-busy": "approve-" + s.id, onclick: () => act("approve-" + s.id, "POST", `/api/specs/${s.id}/approve`, {}, `${s.id} approved. The agent split it into tickets.`) }, "Approve", h("span", { class: "k" }, "G1")),
+        h("button", { class: "btn danger", onclick: () => rejectModal(s) }, "Reject…"), h("span", { class: "grow" }),
+        h("span", { class: "hint" }, isOwner() ? "You're the project owner." : `Only the project owner approves. You're ${me().role}.`));
+    } else if (s.status === "approved") {
+      foot.append(h("div", { class: "grow" }, h("div", { class: "sub", style: "margin-bottom:4px" }, `${done}/${T.length} tickets delivered · approved by ${s.approval.by} ${ago(s.approval.at)}`), h("div", { class: "bar" }, h("i", { style: `width:${T.length ? Math.round(done / T.length * 100) : 0}%` }))),
+        h("button", { class: "btn", onclick: () => { S.specFilter = s.id; S.filter = "all"; setTab("work"); } }, "Open tickets →"));
+    } else {
+      foot.append(h("span", { class: "hint" }, `Rejected by ${s.rejection && s.rejection.by}: ${s.rejection && s.rejection.reason}. The agent is revising it.`));
+    }
+    return h("article", { class: "card spec" },
+      h("div", { class: "spec-top" }, h("span", { class: "sec", style: `background:var(--sec-${sec})` }, sec), h("div", null, h("h3", null, s.title), h("div", { class: "sub" }, h("span", { class: "mono" }, `${s.id} · v${s.version}`), " · lead ", s.role, s.client_signoff_required ? " · client sign-off at release" : "")), h("span", { class: "status st-" + s.status }, s.status)),
+      h("div", { class: "goal" }, s.goal),
+      h("div", { class: "cols" }, h("div", { class: "block" }, h("h4", null, `Scope · ${s.scope.length}`), h("ul", null, s.scope.map((x) => h("li", null, x)))), h("div", { class: "block" }, h("h4", null, "Acceptance criteria"), s.acceptance_criteria.map(acRow))),
+      s.inputs_needed_from_client.length ? h("div", { class: "block needs" }, h("h4", null, `Waiting on the client · ${s.inputs_needed_from_client.length}`), h("ul", null, s.inputs_needed_from_client.map((n) => h("li", null, h("strong", null, n.source_item_id + " "), n.question)))) : null,
+      h("div", { class: "chips" }, h("span", { class: "sub" }, "Traces to"), s.source_item_ids.map((i) => h("span", { class: "chip mono" }, i)), s.depends_on.length ? [h("span", { class: "sub", style: "margin-left:6px" }, "after"), s.depends_on.map((x) => h("span", { class: "chip mono" }, x))] : null),
+      s.risks.length ? h("div", null, s.risks.map((r) => h("div", { class: "risk" }, "⚑ " + r))) : null,
+      foot);
+  }
+  function rejectModal(s) {
+    const reason = h("textarea", { class: "small", placeholder: "What should change? The agent re-drafts the spec with your note.", maxlength: 2000 });
+    openModal(h("h3", null, `Reject ${s.id} ${s.title}`), h("p", { class: "hint" }, "Gate G1. The agent will produce a new version of this spec that records your reason."), reason,
+      h("div", { class: "actions", style: "justify-content:flex-end" }, h("button", { class: "btn", onclick: closeModal }, "Cancel"), h("button", { class: "btn primary", "data-busy": "reject", onclick: async () => { if (await act("reject", "POST", `/api/specs/${s.id}/reject`, { reason: reason.value }, `${s.id} rejected. The agent is revising it.`)) closeModal(); } }, "Reject spec")));
+    setTimeout(() => reason.focus(), 50);
+  }
+
+  // ---------- work ----------
+  function viewWork() {
+    const d = S.data; let T = d.tickets;
+    if (!T.length) return h("div", { class: "empty card" }, h("h3", null, "No tickets yet"), h("p", null, "Approve a spec and the agent splits it into one ticket per answered checklist item."), h("button", { class: "btn gold", onclick: () => setTab("specs") }, "Review specs"));
+    if (S.specFilter !== "all") T = T.filter((t) => t.spec_id === S.specFilter);
+    if (S.filter === "mine") { const ids = new Set(myPlate().map((t) => t.id)); T = T.filter((t) => ids.has(t.id)); }
+    else if (S.filter !== "all") T = T.filter((t) => t.role === S.filter);
+    const mineIds = new Set(myPlate().map((t) => t.id));
+    return h("div", { class: "board" }, STAGES.map((st) => {
+      const list = T.filter((t) => t.stage === st);
+      return h("section", { class: "col" }, h("div", { class: "col-h" }, h("div", null, h("strong", null, STAGE_LABEL[st]), h("small", null, STAGE_HINT[st])), h("span", null, list.length)),
+        list.length ? list.map((t) => ticketCard(t, mineIds.has(t.id))) : h("div", { class: "empty-col" }, "Nothing here"));
+    }));
+  }
+  function ticketCard(t, mine) {
+    const flags = [];
+    if (t.blocked_on_client) flags.push(h("span", { class: "flag blocked" }, "Blocked on client"));
+    else if (t.waiting_on && t.waiting_on.length) flags.push(h("span", { class: "flag wait", title: t.waiting_on.map((w) => w.reason).join("\n") }, "Waiting · " + t.waiting_on.length));
+    if (t.priority) flags.push(h("span", { class: "flag prio" }, "Priority"));
+    return h("button", { type: "button", class: "tcard" + (mine ? " mine" : ""), onclick: () => openDrawer(t.id) },
+      h("div", { class: "row" }, h("span", { class: "id mono" }, t.id), h("span", { class: "acdots" }, t.acceptance_criteria.map((c) => h("i", { class: c.result || "", title: `${c.id}: ${c.result || "not checked"}` })))),
+      h("div", { class: "t" }, t.title),
+      h("div", { class: "row" }, roleTag(t.role), avatar(t.assignee), ...flags));
+  }
+
+  // ---------- drawer ----------
+  function openDrawer(id) { S.drawer = id; S.editing = false; render(); loadDraft(id); }
+  function closeDrawer() { S.drawer = null; S.editing = false; render(); }
+  async function loadDraft(id, force) {
+    const t = ticketById(id); if (!t || !t.agent_draft) return;
+    const key = id + ":" + S.version;
+    if (!force && S.drafts[id] && S.drafts[id].key === key) return;
+    try { const text = await api("GET", `/api/drafts/${id}`); S.drafts[id] = { key, text }; if (S.drawer === id && !S.editing) paintDrawer(); } catch (e) { /* draft not written yet */ }
+  }
+  function paintDrawer() {
+    const dr = $("drawer"), scrim = $("scrim");
+    const t = S.drawer && ticketById(S.drawer);
+    dr.classList.toggle("on", !!t); scrim.classList.toggle("on", !!t); dr.setAttribute("aria-hidden", String(!t));
+    if (!t) { dr.replaceChildren(); return; }
+    loadDraft(t.id);
+    const spec = specById(t.spec_id); const p = me(); const idx = STAGES.indexOf(t.stage);
+    const head = h("div", { class: "d-head" }, h("button", { class: "x", onclick: closeDrawer, "aria-label": "Close" }, "×"),
+      h("div", { class: "sub" }, h("span", { class: "mono" }, t.id), " · ", spec ? `${spec.id} ${spec.title}` : t.spec_id),
+      h("h2", null, t.title),
+      h("div", { class: "stepper" }, STAGES.map((st, i) => h("div", { class: "step" + (i < idx ? " past" : i === idx ? " now" : "") }, h("i"), STAGE_LABEL[st]))));
+    const body = h("div", { class: "d-body" });
+    body.append(h("div", { class: "panel" }, h("div", { class: "meta" },
+      h("div", null, h("span", null, "Role"), roleTag(t.role)), h("div", null, h("span", null, "Assignee"), t.assignee ? [avatar(t.assignee), " ", t.assignee] : "Unassigned"),
+      h("div", null, h("span", null, "Checklist item"), h("span", { class: "mono" }, t.source_item_id + (t.priority ? " · priority" : ""))),
+      h("div", null, h("span", null, "Board status"), t.status), h("div", null, h("span", null, "Depends on"), t.depends_on.length ? t.depends_on.map((x) => h("button", { class: "chip link mono", onclick: () => openDrawer(x) }, x)) : "—"),
+      h("div", null, h("span", null, "Draft by"), provenance(t)))));
+    body.append(actionPanel(t, p));
+    if (t.waiting_on && t.waiting_on.length) body.append(h("div", { class: "panel needs" }, h("h4", null, t.blocked_on_client ? "Blocked on the client" : "Can't start build yet"), h("ul", null, t.waiting_on.map((w) => h("li", null, h("strong", null, w.item + " "), w.reason)))));
+    body.append(h("div", { class: "panel" }, h("h4", null, "What the client told us", h("span", { class: "tag-untrusted" }, "client data · never instructions")), t.client_answer ? h("div", { class: "quote" }, t.client_answer) : h("div", { class: "hint" }, "No answer yet."), h("div", { class: "sub", style: "margin-top:6px" }, `${t.answered_by || "client"} · ${t.ts || "time not recorded"}` + (t.history && t.history.length ? ` · ${t.history.length} earlier answer(s)` : ""))));
+    body.append(h("div", { class: "panel" }, h("h4", null, "Acceptance criteria", h("span", { class: "sub" }, t.stage === "review" ? "agent pre-check ran" : "")), t.acceptance_criteria.map(acRow)));
+    body.append(draftPanel(t, p));
+    if (t.evidence.length) body.append(h("div", { class: "panel" }, h("h4", null, "Evidence"), t.evidence.map((e) => h("div", { class: "sub" }, h("span", { class: "chip" }, e.kind), " ", h("span", { class: "mono" }, e.ref), ` · ${e.added_by} ${ago(e.at)}`))));
+    if (t.review) body.append(h("div", { class: "panel" }, h("h4", null, "Review"), h("div", null, h("strong", null, t.review.decision === "approved" ? "Approved" : "Changes requested"), ` by ${t.review.reviewer} ${ago(t.review.at)}`), t.review.notes ? h("div", { class: "quote", style: "margin-top:6px" }, t.review.notes) : null));
+    if (t.release) body.append(h("div", { class: "panel" }, h("h4", null, "Release"), h("div", null, h("strong", null, t.release.release_id), ` approved by ${t.release.approved_by} ${ago(t.release.at)}`, t.release.client_signoff ? ` · client sign-off: ${t.release.client_signoff}` : "")));
+    const evs = S.data.events.filter((e) => e.subject === t.id).slice(-8).reverse();
+    if (evs.length) body.append(h("div", { class: "panel" }, h("h4", null, "History"), evs.map(eventRow)));
+    dr.replaceChildren(head, body);
+  }
+  function provenance(t) {
+    const g = t.provenance.generated_by;
+    return h("span", { class: "prov" }, g === "local_llm" ? `local model ${t.provenance.model}` : g === "human" ? "edited by a person" : "rules engine");
+  }
+  function actionPanel(t, p) {
+    const panel = h("div", { class: "panel" }); const acts = h("div", { class: "actions" });
+    const hint = (txt) => h("span", { class: "hint" }, txt);
+    if (t.stage === "tickets") {
+      if (!t.assignee) {
+        acts.append(h("button", { class: "btn gold", "data-busy": "accept", onclick: () => act("accept", "POST", `/api/tickets/${t.id}/accept`, {}, `${t.id} accepted. ${t.waiting_on.length ? "It starts when its prerequisites pass." : "The agent drafted it."}`) }, `Accept as ${p.name}`, h("span", { class: "k" }, "G2")));
+        acts.append(hint(p.role === t.role ? "Accepting puts it on your plate." : `This is ${t.role} work; you're ${p.role}.`));
+      } else acts.append(hint(`Accepted by ${t.assignee}. Moves to build when it's unblocked.`));
+    } else if (t.stage === "build") {
+      const kind = h("select", { class: "txt" }, ["file", "link", "pr", "note"].map((k) => h("option", { value: k }, k)));
+      const ref = h("input", { class: "txt", placeholder: t.agent_draft ? `Defaults to the draft: ${t.agent_draft}` : "Link, file path, PR or note" });
+      panel.append(h("h4", null, "Submit for review"), h("div", { class: "row2" }, kind, ref), h("div", { style: "height:8px" }));
+      acts.append(h("button", { class: "btn primary", "data-busy": "submit", onclick: () => act("submit", "POST", `/api/tickets/${t.id}/submit`, { kind: kind.value, ref: ref.value || null }, `${t.id} submitted. The agent pre-checked it.`) }, "Submit for review"));
+      acts.append(hint(p.name === t.assignee ? "Edit the draft below first if you need to." : `Only ${t.assignee} can submit this.`));
+    } else if (t.stage === "review") {
+      const notes = h("textarea", { class: "small", placeholder: "Notes for the builder (required when requesting changes)" });
+      const failing = t.acceptance_criteria.some((c) => c.result === "not_met");
+      panel.append(h("h4", null, "Review", h("span", { class: "gate-badge" }, "G3")), notes, h("div", { style: "height:8px" }));
+      acts.append(h("button", { class: "btn ok", "data-busy": "approve-review", onclick: () => act("approve-review", "POST", `/api/tickets/${t.id}/review`, { decision: "approved", notes: notes.value }, `${t.id} approved. Ready for release.`) }, "Approve"),
+        h("button", { class: "btn", "data-busy": "changes", onclick: () => act("changes", "POST", `/api/tickets/${t.id}/review`, { decision: "changes_requested", notes: notes.value }, `Sent ${t.id} back to build.`) }, "Request changes"),
+        hint(p.name === t.assignee ? "You built this, so you can't approve it." : failing ? "The agent found unmet criteria." : `Reviewing as ${p.name}.`));
+    } else if (t.stage === "release") {
+      acts.append(h("button", { class: "btn gold", onclick: () => releaseModal(specById(t.spec_id)) }, `Release ${t.spec_id}…`, h("span", { class: "k" }, "G4")), hint("Reviewed. The project owner ships it with the rest of the spec."));
+    } else acts.append(hint(`Delivered in ${t.release && t.release.release_id}.`));
+    panel.append(acts); return panel;
+  }
+  function draftPanel(t, p) {
+    const panel = h("div", { class: "panel" });
+    if (!t.agent_draft) { panel.append(h("h4", null, "Working draft"), h("div", { class: "hint" }, "The agent writes a draft from the client's answers as soon as the ticket enters build.")); return panel; }
+    const cached = S.drafts[t.id] && S.drafts[t.id].text;
+    const canEdit = t.stage === "build" && p.name === t.assignee;
+    const headBtns = [];
+    if (canEdit && !S.editing) headBtns.push(h("button", { class: "btn", onclick: () => { S.editing = true; S.editText = cached || ""; paintDrawer(); } }, "Edit draft"));
+    panel.append(h("h4", null, h("span", null, "Working draft ", h("span", { class: "mono", style: "text-transform:none;letter-spacing:0" }, t.agent_draft)), ...headBtns));
+    if (S.editing && canEdit) {
+      const ta = h("textarea", { class: "ed", oninput: (e) => { S.editText = e.target.value; } }); ta.value = S.editText;
+      panel.append(ta, h("div", { class: "actions", style: "margin-top:8px" }, h("button", { class: "btn primary", "data-busy": "save", onclick: async () => { if (await act("save", "PUT", `/api/tickets/${t.id}/draft`, { text: S.editText }, "Draft saved.")) { S.editing = false; S.drafts[t.id] = { key: "", text: S.editText }; loadDraft(t.id, true); } } }, "Save draft"), h("button", { class: "btn", onclick: () => { S.editing = false; paintDrawer(); } }, "Cancel"), h("span", { class: "hint" }, "Numbers you add must trace to a client answer, or start with ≈ if derived.")));
+    } else panel.append(cached ? md(cached) : h("div", { class: "hint" }, "Loading draft…"));
+    return panel;
+  }
+
+  // ---------- releases ----------
+  function viewReleases() {
+    const d = S.data; const bySpec = {};
+    d.tickets.filter((t) => t.stage === "release").forEach((t) => { (bySpec[t.spec_id] = bySpec[t.spec_id] || []).push(t); });
+    const ready = Object.entries(bySpec);
+    const left = h("div", { class: "stack" }, h("h3", { style: "margin:0" }, "Ready to release"),
+      ready.length ? ready.map(([id, list]) => { const s = specById(id); const total = d.tickets.filter((t) => t.spec_id === id && t.stage !== "done").length;
+        return h("div", { class: "card rel" }, h("div", { class: "rel-h" }, h("span", { class: "sec", style: `background:var(--sec-${secOf(s)})` }, secOf(s)), h("div", null, h("strong", null, `${s.id} ${s.title}`), h("div", { class: "sub" }, `${list.length} reviewed of ${total} open · ${s.client_signoff_required ? "needs client sign-off" : "internal deliverable"}`)), h("span", { style: "flex:1" }), h("button", { class: "btn gold", onclick: () => releaseModal(s) }, "Release…", h("span", { class: "k" }, "G4"))),
+          h("ul", null, list.map((t) => h("li", null, h("span", { class: "mono" }, t.id + " "), t.title, ` · reviewed by ${t.review.reviewer}`)))); })
+        : h("div", { class: "card rel hint" }, "Nothing reviewed is waiting. Approved reviews land here."));
+    const right = h("div", { class: "stack" }, h("h3", { style: "margin:0" }, `Shipped · ${d.releases.length}`),
+      d.releases.length ? d.releases.slice().reverse().map((r) => h("div", { class: "card rel" }, h("div", { class: "rel-h" }, h("strong", { class: "mono" }, r.id), h("span", { class: "sub" }, `${r.spec_id} · ${r.approved_by} · ${ago(r.at)}`)), h("p", { class: "goal" }, r.client_summary), md(r.notes)))
+        : h("div", { class: "card rel hint" }, "No releases yet."));
+    return h("div", { class: "two" }, left, right);
+  }
+  function releaseModal(s) {
+    const list = S.data.tickets.filter((t) => t.spec_id === s.id && t.stage === "release");
+    const signoff = h("input", { class: "txt", placeholder: s.client_signoff_required ? "Required: who signed off at the client, and how" : "Optional", maxlength: 400 });
+    const notes = h("textarea", { class: "small", placeholder: "Anything to add to the agent's release notes" });
+    openModal(h("h3", null, `Release ${s.id} ${s.title}`), h("p", { class: "hint" }, `Gate G4. ${list.length} reviewed ticket(s) ship. The agent writes the release notes and the client summary.`),
+      h("ul", null, list.map((t) => h("li", null, `${t.id} ${t.title}`))),
+      h("label", { class: "sub" }, "Client sign-off ", s.client_signoff_required ? h("span", { class: "gate-badge" }, "required") : null), signoff, h("label", { class: "sub" }, "Notes"), notes,
+      h("div", { class: "actions", style: "justify-content:flex-end" }, h("button", { class: "btn", onclick: closeModal }, "Cancel"), h("button", { class: "btn gold", "data-busy": "release", onclick: async () => { if (await act("release", "POST", "/api/releases", { spec_id: s.id, client_signoff: signoff.value || null, notes: notes.value || null }, `${s.id} released.`)) { closeModal(); setTab("releases"); } } }, "Release")));
+  }
+
+  // ---------- client update ----------
+  function viewUpdate() {
+    const d = S.data; const st = d.status;
+    if (!st) return h("div", { class: "empty" }, "No status yet.");
+    const sent = st.client_update.approval;
+    const letter = S.updateEditing ? (() => { const ta = h("textarea", { class: "ed", style: "min-height:300px", oninput: (e) => { S.updateText = e.target.value; } }); ta.value = S.updateText; return ta; })() : h("div", { class: "letter" }, st.client_update.draft);
+    const acts = h("div", { class: "actions" });
+    if (S.updateEditing) acts.append(h("button", { class: "btn primary", "data-busy": "upd", onclick: async () => { if (await act("upd", "PUT", "/api/status/draft", { text: S.updateText }, "Update saved.")) S.updateEditing = false; render(); } }, "Save"), h("button", { class: "btn", onclick: () => { S.updateEditing = false; render(); } }, "Cancel"));
+    else if (sent) acts.append(h("span", { class: "sent" }, `✓ Sent by ${sent.by} ${ago(sent.at)}`), h("span", { class: "hint" }, "A new draft appears when the work changes."));
+    else acts.append(h("button", { class: "btn gold", "data-busy": "send", onclick: () => act("send", "POST", "/api/status/send", {}, "Client update sent to the outbox with follow-up questions.") }, "Approve & send", h("span", { class: "k" }, "G5")), h("button", { class: "btn", onclick: () => { S.updateEditing = true; S.updateText = st.client_update.draft; render(); } }, "Edit"), h("span", { class: "hint" }, isOwner() ? "Nothing reaches the client without you." : "Only the project owner sends."));
+    const c = st.counts_by_stage;
+    const left = h("div", { class: "stack" },
+      h("div", { class: "card panel" }, h("h4", null, "Draft update for the client", h("span", { class: "gate-badge" }, "G5")), letter, h("div", { style: "height:10px" }), acts),
+      h("div", { class: "card panel" }, h("h4", null, `Follow-up questions · ${st.open_gaps.length}`), st.open_gaps.length ? st.open_gaps.map((g) => h("div", { class: "ac" }, h("span", { class: "ic client_confirmation" }, "?"), h("span", null, h("strong", { class: "mono" }, g.source_item_id + " "), g.question, h("span", { class: "note" }, "Blocks " + g.blocks.join(", "))))) : h("div", { class: "hint" }, "Nothing is waiting on the client.")));
+    const right = h("div", { class: "stack" },
+      h("div", { class: "card panel" }, h("h4", null, "Where the work is"), h("div", { class: "kpis" }, STAGES.map((k) => h("div", { class: "kpi" }, h("b", null, c[k]), h("span", null, STAGE_LABEL[k])))),
+        h("div", { style: "height:10px" }), Object.entries(st.counts_by_role).map(([role, v]) => { const total = v.open + v.done; return h("div", { class: "rolebar" }, roleTag(role), h("div", { class: "bar" }, h("i", { style: `width:${total ? Math.round(v.done / total * 100) : 0}%` })), h("span", { class: "sub" }, `${v.done}/${total}` + (v.blocked ? ` · ${v.blocked}⛔` : ""))); })),
+      h("div", { class: "card panel" }, h("h4", null, `Blocked or waiting · ${st.blocked.length}`), st.blocked.length ? st.blocked.slice(0, 12).map((b) => h("div", { class: "sub", style: "margin:4px 0" }, h("button", { class: "chip link mono", onclick: () => b.id.includes("-T") ? openDrawer(b.id) : setTab("specs") }, b.id), " ", b.detail)) : h("div", { class: "hint" }, "Nothing blocked.")),
+      h("div", { class: "card panel" }, h("h4", null, `Outbox · ${d.outbox.length}`), d.outbox.length ? d.outbox.slice().reverse().map((m) => h("div", { style: "margin-bottom:10px" }, h("div", { class: "sub" }, h("strong", { class: "mono" }, m.id), ` · ${m.by} · ${ago(m.at)} · ${m.follow_up_questions.length} follow-up(s) · ${m.channel}`))) : h("div", { class: "hint" }, "Nothing sent yet.")));
+    return h("div", { class: "two" }, left, right);
+  }
+
+  // ---------- activity & brd ----------
+  function eventRow(e) {
+    const agent = e.actor === "SDLC agent";
+    return h("div", { class: "ev" }, agent ? h("span", { class: "av agent-av", title: "SDLC agent" }, "✦") : avatar(e.actor), h("div", null, h("span", { class: "who" }, e.actor), " ", e.message), h("time", { datetime: e.at, title: e.at }, ago(e.at)));
+  }
+  function viewActivity() {
+    let ev = S.data.events.slice().reverse();
+    if (S.feed === "agent") ev = ev.filter((e) => e.actor === "SDLC agent"); else if (S.feed === "people") ev = ev.filter((e) => e.actor !== "SDLC agent");
+    return h("div", { class: "card panel" }, h("h4", null, `Activity · ${ev.length}`), ev.length ? h("div", { class: "feed" }, ev.map(eventRow)) : h("div", { class: "hint" }, "Nothing yet."));
+  }
+  function viewBrd() {
+    const wrap = h("div", { class: "card panel" }, h("h4", null, "Business requirements (from intake)", h("span", { class: "tag-untrusted" }, "client data")));
+    if (S.brd === null) { wrap.append(h("div", { class: "hint" }, "Loading…")); api("GET", "/api/brd").then((t) => { S.brd = t; if (S.tab === "brd") paintMain(); }).catch(() => {}); }
+    else wrap.append(md(S.brd.replace(/\s\(([A-Z]+\d+)\) answered_by=\S+(?: name=[^ ]+(?: [^ ]+)*?)? ts=\S+/g, " ($1)")));
+    return wrap;
+  }
+  function paintFoot() {
+    const a = S.data.agent;
+    $("foot").replaceChildren(h("span", null, h("b", null, "Local-first"), " · client data stays on this machine"), h("span", null, "Model: ", h("b", null, a.mode === "local_llm" ? `${a.model} @ ${a.base_url}` : "rules (no model)")), h("span", null, "Agent MCP: ", h("b", { class: "mono" }, a.mcp_url)), h("span", null, "Source: ", h("b", null, S.data.source === "live" ? "live intake (data/out)" : "Northline sample")), h("span", null, `${S.data.events.length} events`),
+      h("span", { style: "margin-left:auto" }, h("button", { class: "btn-dark", style: "padding:2px 10px", onclick: resetModal }, "Reset demo")));
+  }
+
+  // ---------- modal & misc ----------
+  function openModal(...kids) { $("modal-box").replaceChildren(...kids); $("modal").classList.add("on"); $("modal").setAttribute("aria-hidden", "false"); }
+  function closeModal() { $("modal").classList.remove("on"); $("modal").setAttribute("aria-hidden", "true"); }
+  function resetModal() {
+    openModal(h("h3", null, "Reset the SDLC demo?"), h("p", { class: "hint" }, `Clears specs, tickets, drafts, releases and the outbox for the ${S.data.source} source. Intake answers, the BRD and work items are untouched. The agent re-drafts the specs at once.`),
+      h("div", { class: "actions", style: "justify-content:flex-end" }, h("button", { class: "btn", onclick: closeModal }, "Cancel"), h("button", { class: "btn primary", "data-busy": "reset", onclick: async () => { if (await act("reset", "POST", "/api/reset", {}, "Demo reset. Specs re-drafted.")) { closeModal(); S.drawer = null; S.drafts = {}; S.brd = null; setTab("specs"); } } }, "Reset")));
+  }
+  async function switchSource(src) { if (S.busy) return; S.drawer = null; S.drafts = {}; S.brd = null; await act("source", "POST", "/api/source", { source: src }, src === "live" ? "Showing the live intake." : "Showing the Northline sample."); }
+
+  $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+  $("scrim").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("modal").classList.contains("on")) closeModal(); else if (S.drawer) closeDrawer(); } });
+  document.querySelectorAll("[data-source]").forEach((b) => b.addEventListener("click", () => switchSource(b.dataset.source)));
+  $("persona").addEventListener("change", (e) => { S.persona = e.target.value; store("aceops.persona", S.persona); toast(`Acting as ${me().name}, ${me().role}.`); render(); });
+  $("run").addEventListener("click", () => act("run", "POST", "/api/agent/run", {}, "Agent ran a sync."));
+  $("run").setAttribute("data-busy", "run");
+  setInterval(paintAgent, 1000);
+  poll();
+  </script>
+</body>
+</html>
