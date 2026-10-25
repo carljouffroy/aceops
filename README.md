@@ -11,7 +11,8 @@
 
 <p align="center">
   <img alt="all inference local" src="https://img.shields.io/badge/inference-100%25%20local-e8c290?style=flat-square&labelColor=1f1610">
-  <img alt="tests" src="https://img.shields.io/badge/tests-61%20passing-7fdc9f?style=flat-square&labelColor=1f1610">
+  <a href="https://github.com/carljouffroy/aceops/actions/workflows/ci.yml"><img alt="tests" src="https://img.shields.io/github/actions/workflow/status/carljouffroy/aceops/ci.yml?branch=main&label=tests&style=flat-square&labelColor=1f1610&color=7fdc9f"></a>
+  <img alt="stage agents" src="https://img.shields.io/badge/stage%20agents-6%20isolated-e8c290?style=flat-square&labelColor=1f1610">
   <img alt="python" src="https://img.shields.io/badge/python-3.12-c9955a?style=flat-square&labelColor=1f1610">
   <img alt="mcp" src="https://img.shields.io/badge/MCP-2%20servers-c9955a?style=flat-square&labelColor=1f1610">
   <img alt="human gates" src="https://img.shields.io/badge/human%20gates-5-f3d9a4?style=flat-square&labelColor=1f1610">
