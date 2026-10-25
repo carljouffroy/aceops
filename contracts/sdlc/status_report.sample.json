@@ -1,0 +1,91 @@
+{
+  "client": "northline-goods",
+  "generated_at": "2026-10-25T14:25:00-07:00",
+  "counts_by_stage": {
+    "tickets": 2,
+    "build": 1,
+    "review": 1,
+    "release": 1,
+    "done": 0
+  },
+  "counts_by_role": {
+    "Marketing Specialist": {
+      "open": 2,
+      "blocked": 0,
+      "done": 0
+    },
+    "Data Analyst": {
+      "open": 3,
+      "blocked": 0,
+      "done": 0
+    },
+    "Developer": {
+      "open": 0,
+      "blocked": 0,
+      "done": 0
+    }
+  },
+  "specs": [
+    {
+      "id": "SPEC-003",
+      "title": "Profit model and constraints",
+      "status": "approved",
+      "tickets_done": 0,
+      "tickets_total": 5
+    },
+    {
+      "id": "SPEC-005",
+      "title": "Tools, feed and tracking requirements",
+      "status": "draft",
+      "tickets_done": 0,
+      "tickets_total": 0
+    }
+  ],
+  "blocked": [
+    {
+      "id": "SPEC-005",
+      "reason": "awaiting_approval",
+      "detail": "Draft spec waiting for gate G1."
+    },
+    {
+      "id": "SPEC-003-T03",
+      "reason": "depends_on",
+      "detail": "Waits on SPEC-003-T01, SPEC-003-T04."
+    },
+    {
+      "id": "SPEC-003-T05",
+      "reason": "depends_on",
+      "detail": "Waits on SPEC-003-T02."
+    }
+  ],
+  "overdue": [],
+  "open_gaps": [
+    {
+      "source_item_id": "A2",
+      "question": "Invite our address to every Google Merchant Center account. Which accounts exist?",
+      "blocks": [
+        "SPEC-005"
+      ]
+    },
+    {
+      "source_item_id": "F5",
+      "question": "Is product cost (COGS) filled in for all products in your store? List the custom labels used in the feed.",
+      "blocks": [
+        "SPEC-005"
+      ]
+    }
+  ],
+  "client_update": {
+    "draft": "Profit model: product margins are built and approved; order costs are in review and category ranking has started. Tools and feed: the review plan is drafted. To start the feed review we need two things from you: an invite to every Merchant Center account, and confirmation that product cost is filled in for all products.",
+    "approval": null
+  },
+  "provenance": {
+    "generated_by": "rules",
+    "model": null,
+    "generated_at": "2026-10-25T14:25:00-07:00",
+    "inputs": [
+      "data/out/sdlc/specs.json",
+      "data/out/sdlc/tickets.json"
+    ]
+  }
+}

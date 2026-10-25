@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" font-family="Work Sans, Helvetica Neue, Helvetica, Arial, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">ACE Ops architecture: everything runs on one Dell Pro Max GB10 over loopback</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b120c"/><stop offset="1" stop-color="#120c08"/></linearGradient>
+    <linearGradient id="dawn" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9955a"/><stop offset="1" stop-color="#f3d9a4"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#e8c290"/></marker>
+    <marker id="arrowdim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8c7961"/></marker>
+    <filter id="glow" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <style>
+    .box { fill: #1f1610; stroke: rgba(243,217,164,.22); stroke-width: 1.2; rx: 14; }
+    .box.people { stroke: #e8c290; }
+    .box.agent { stroke: #4fb3b3; }
+    .box.data { fill: #19110c; stroke: rgba(243,217,164,.14); stroke-dasharray: 5 5; }
+    .title { fill: #fff6e6; font-size: 20px; font-weight: 600; }
+    .sub { fill: #b5a186; font-size: 14px; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; fill: #e8c290; }
+    .label { fill: #8c7961; font-size: 12px; letter-spacing: .18em; font-weight: 600; }
+    .flow { stroke: #e8c290; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    .flow.dim { stroke: #8c7961; stroke-width: 1.5; marker-end: url(#arrowdim); stroke-dasharray: 6 5; }
+    .note { fill: #e4d8c6; font-size: 13px; }
+    .gate { fill: #f3d9a4; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+  </style>
+  <rect width="1600" height="980" fill="url(#bg)"/>
+
+  <!-- wordmark -->
+  <text x="60" y="64" fill="#ffffff" font-size="30" font-weight="500" letter-spacing="11" filter="url(#glow)">ACE OPS</text>
+  <text x="60" y="92" class="sub">Architecture · one box, loopback only · the agent drafts, people decide</text>
+
+  <!-- the GB10 boundary -->
+  <rect x="300" y="120" width="1250" height="800" rx="22" fill="none" stroke="url(#dawn)" stroke-width="2"/>
+  <rect x="320" y="104" width="1060" height="32" rx="8" fill="#120c08"/>
+  <text x="336" y="126" class="label">DELL PRO MAX WITH GB10 · 127.0.0.1 ONLY · NO CLOUD CALLS</text>
+
+  <!-- outside: client's AI -->
+  <rect x="50" y="300" width="200" height="120" class="box"/>
+  <text x="70" y="335" class="title">Client's AI</text>
+  <text x="70" y="358" class="sub">Any MCP client</text>
+  <text x="70" y="378" class="sub">(ChatGPT, Claude, …)</text>
+  <text x="70" y="400" class="sub">answers the checklist</text>
+  <path d="M250 345 H340" class="flow"/>
+  <text x="258" y="336" class="mono">MCP</text>
+  <path d="M340 385 H250" class="flow dim"/>
+  <text x="258" y="404" class="sub" font-size="12">follow-ups</text>
+
+  <!-- intake -->
+  <rect x="340" y="280" width="260" height="150" class="box"/>
+  <text x="360" y="312" class="title">Intake MCP server</text>
+  <text x="360" y="334" class="mono">:8787/mcp · :8788 admin</text>
+  <text x="360" y="358" class="sub">get_next_item · submit_answer</text>
+  <text x="360" y="376" class="sub">get_progress · append-only answers</text>
+  <text x="360" y="394" class="sub">with provenance · injection-tested</text>
+  <text x="360" y="416" class="mono" fill="#8c7961">src/intake · SQLite</text>
+
+  <!-- internal agent -->
+  <path d="M600 355 H660" class="flow"/>
+  <rect x="660" y="280" width="250" height="150" class="box agent"/>
+  <text x="680" y="312" class="title">Internal agent</text>
+  <text x="680" y="334" class="mono">internal.run --live</text>
+  <text x="680" y="358" class="sub">polls every 3 s · writes the BRD</text>
+  <text x="680" y="376" class="sub">by section · dispatches work items</text>
+  <text x="680" y="394" class="sub">to Marketing / Data / Developer</text>
+  <text x="680" y="416" class="mono" fill="#8c7961">src/internal</text>
+
+  <!-- data/out -->
+  <path d="M785 430 V480" class="flow"/>
+  <rect x="640" y="480" width="290" height="96" class="box data"/>
+  <text x="660" y="508" class="label">DATA/OUT</text>
+  <text x="660" y="532" class="mono">brd.md · work_items.json</text>
+  <text x="660" y="552" class="mono">progress.json · overrides.json</text>
+
+  <!-- board -->
+  <path d="M930 528 H1000" class="flow"/>
+  <rect x="1000" y="470" width="230" height="116" class="box people"/>
+  <text x="1020" y="500" class="title">Work board</text>
+  <text x="1020" y="522" class="mono">:8790</text>
+  <text x="1020" y="546" class="sub">My plate per role</text>
+  <text x="1020" y="564" class="sub">Blocked on client · progress</text>
+
+  <!-- SDLC agent -->
+  <path d="M785 576 V640" class="flow"/>
+  <rect x="620" y="640" width="330" height="170" class="box agent"/>
+  <text x="640" y="672" class="title">SDLC agent</text>
+  <text x="640" y="694" class="mono">python -m sdlc · sync every 3 s</text>
+  <text x="640" y="718" class="sub">Spec → Tickets → Build → Review → Release → Status</text>
+  <text x="640" y="738" class="sub">drafts from the client's own figures</text>
+  <text x="640" y="756" class="sub">pre-checks acceptance criteria</text>
+  <text x="640" y="774" class="sub">rules first · local model polish (provenance)</text>
+  <text x="640" y="798" class="mono" fill="#8c7961">src/sdlc · writes only data/out/sdlc</text>
+
+  <!-- data/out/sdlc -->
+  <rect x="340" y="690" width="240" height="96" class="box data"/>
+  <text x="360" y="718" class="label">DATA/OUT/SDLC</text>
+  <text x="360" y="742" class="mono">specs.json · tickets.json</text>
+  <text x="360" y="762" class="mono">status.json · drafts/*.md</text>
+  <path d="M620 738 H580" class="flow"/>
+
+  <!-- console -->
+  <path d="M950 700 H1000" class="flow"/>
+  <rect x="1000" y="640" width="250" height="170" class="box people"/>
+  <text x="1020" y="672" class="title">Delivery console</text>
+  <text x="1020" y="694" class="mono">:8792 · people only</text>
+  <text x="1020" y="720" class="gate">G1 APPROVE SPEC · OWNER</text>
+  <text x="1020" y="738" class="gate">G2 ACCEPT TICKET · ROLE</text>
+  <text x="1020" y="756" class="gate">G3 REVIEW · PEER, NOT BUILDER</text>
+  <text x="1020" y="774" class="gate">G4 RELEASE · OWNER + CLIENT</text>
+  <text x="1020" y="792" class="gate">G5 SEND UPDATE · OWNER</text>
+
+  <!-- SDLC MCP -->
+  <path d="M950 760 H1000" class="flow dim" style="display:none"/>
+  <rect x="1290" y="640" width="240" height="170" class="box agent"/>
+  <text x="1310" y="672" class="title">SDLC MCP server</text>
+  <text x="1310" y="694" class="mono">:8791/mcp · agents only</text>
+  <text x="1310" y="718" class="sub">read_brd · list_work_items</text>
+  <text x="1310" y="736" class="sub">draft_spec · split_spec · precheck</text>
+  <text x="1310" y="754" class="sub">draft_artifact · draft_release</text>
+  <text x="1310" y="772" class="sub">build_status</text>
+  <text x="1310" y="796" fill="#f3a99c" font-size="12" font-weight="600">no approve · no send · no release</text>
+  <path d="M950 790 C 1000 830, 1240 830, 1290 790" class="flow"/>
+
+  <!-- OpenShell / model -->
+  <rect x="1290" y="280" width="240" height="300" class="box"/>
+  <text x="1310" y="312" class="title">Agent runtime</text>
+  <text x="1310" y="334" class="sub">OpenClaw in an OpenShell</text>
+  <text x="1310" y="352" class="sub">sandbox (via NemoClaw)</text>
+  <text x="1310" y="370" class="sub">egress: loopback only</text>
+  <line x1="1310" y1="392" x2="1510" y2="392" stroke="rgba(243,217,164,.18)"/>
+  <text x="1310" y="420" class="title" font-size="17">Local model</text>
+  <text x="1310" y="442" class="mono">127.0.0.1:8000/v1</text>
+  <text x="1310" y="464" class="sub">Nemotron / open model</text>
+  <text x="1310" y="482" class="sub">OpenAI-compatible · tool calls</text>
+  <text x="1310" y="510" class="note">Guard: a model URL that isn't</text>
+  <text x="1310" y="528" class="note">loopback stops the service.</text>
+  <text x="1310" y="556" class="mono" fill="#8c7961">nvidia-smi shows it on the GPU</text>
+  <path d="M1410 640 V580" class="flow"/>
+  <path d="M1290 330 H 960 C 930 330, 930 300, 910 300" class="flow dim"/>
+  <text x="1010" y="322" class="sub" font-size="12">optional polish, loopback only</text>
+
+  <!-- legend -->
+  <g transform="translate(60,520)">
+    <text class="label" y="0">LEGEND</text>
+    <rect x="0" y="16" width="26" height="16" rx="4" class="box agent"/><text x="36" y="29" class="note">agent (drafts, checks, never approves)</text>
+    <rect x="0" y="44" width="26" height="16" rx="4" class="box people"/><text x="36" y="57" class="note">people (five gates)</text>
+    <rect x="0" y="72" width="26" height="16" rx="4" class="box data"/><text x="36" y="85" class="note">files on disk, replaced atomically</text>
+    <line x1="0" y1="112" x2="26" y2="112" class="flow"/><text x="36" y="116" class="note">data flow</text>
+    <line x1="0" y1="138" x2="26" y2="138" class="flow dim"/><text x="36" y="142" class="note">optional / return path</text>
+  </g>
+
+  <!-- footer -->
+  <text x="60" y="950" class="sub">Client text is stored and shown as data, never executed as instructions. No external fonts, scripts or images anywhere in the product.</text>
+</svg>

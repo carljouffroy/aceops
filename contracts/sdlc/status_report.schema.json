@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SDLC status report",
+  "description": "Status stage output for one client, rebuilt after every change and on a schedule. data/out/sdlc/status.json holds one of these. The client update is only sent after gate G5. DRAFT 2026-10-25.",
+  "type": "object",
+  "required": ["client", "generated_at", "counts_by_stage", "counts_by_role", "specs", "blocked", "overdue", "open_gaps", "client_update", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "client": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "counts_by_stage": {
+      "type": "object",
+      "required": ["tickets", "build", "review", "release", "done"],
+      "additionalProperties": false,
+      "properties": {
+        "tickets": { "type": "integer", "minimum": 0 },
+        "build": { "type": "integer", "minimum": 0 },
+        "review": { "type": "integer", "minimum": 0 },
+        "release": { "type": "integer", "minimum": 0 },
+        "done": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "counts_by_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "Marketing Specialist": { "$ref": "#/$defs/role_counts" },
+        "Data Analyst": { "$ref": "#/$defs/role_counts" },
+        "Developer": { "$ref": "#/$defs/role_counts" }
+      }
+    },
+    "specs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "tickets_done", "tickets_total"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^SPEC-[0-9]{3}$" },
+          "title": { "type": "string" },
+          "status": { "enum": ["draft", "in_review", "approved", "rejected", "superseded"] },
+          "tickets_done": { "type": "integer", "minimum": 0 },
+          "tickets_total": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "blocked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "description": "Ticket or spec id." },
+          "reason": { "enum": ["blocked_on_client", "depends_on", "awaiting_approval"] },
+          "detail": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "overdue": { "type": "array", "items": { "type": "string" }, "description": "Ticket ids past due and not done." },
+    "open_gaps": {
+      "type": "array",
+      "description": "Follow-up questions for the client, built from spec inputs_needed_from_client and BRD open gaps.",
+      "items": {
+        "type": "object",
+        "required": ["source_item_id", "question", "blocks"],
+        "additionalProperties": false,
+        "properties": {
+          "source_item_id": { "type": "string" },
+          "question": { "type": "string" },
+          "blocks": { "type": "array", "items": { "type": "string" }, "description": "Spec or ticket ids waiting on this answer." }
+        }
+      }
+    },
+    "client_update": {
+      "type": "object",
+      "required": ["draft", "approval"],
+      "additionalProperties": false,
+      "properties": {
+        "draft": { "type": "string", "description": "Plain-language update for the client, drafted by the agent." },
+        "approval": {
+          "oneOf": [
+            { "type": "object", "required": ["by", "at"], "additionalProperties": false, "properties": { "by": { "type": "string", "minLength": 1 }, "at": { "type": "string", "format": "date-time" }, "note": { "type": ["string", "null"] } } },
+            { "type": "null" }
+          ],
+          "description": "Gate G5. Null until the project owner approves sending."
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["generated_by", "generated_at"],
+      "additionalProperties": false,
+      "properties": {
+        "generated_by": { "enum": ["rules", "local_llm", "human"] },
+        "model": { "type": ["string", "null"] },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "inputs": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "$defs": {
+    "role_counts": {
+      "type": "object",
+      "description": "open and blocked mean the same as in progress.schema.json by_role (not Done; blocked_on_client), counted over tickets.",
+      "required": ["open", "blocked", "done"],
+      "additionalProperties": false,
+      "properties": {
+        "open": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "done": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
