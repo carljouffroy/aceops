@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "progress.schema.json",
+  "title": "Intake progress",
+  "description": "Written to data/out/progress.json beside brd.md and work_items.json. priority_gate.done is true only when every priority checklist item is DONE or PROVIDED. by_role.open counts work items not marked Done. by_role.blocked counts work items waiting on the client.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "total",
+    "answered",
+    "remaining",
+    "priority_gate",
+    "by_role",
+    "updated_at"
+  ],
+  "properties": {
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "answered": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "remaining": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "priority_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ids", "done"],
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "done": {"type": "boolean"}
+      }
+    },
+    "by_role": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["open", "blocked"],
+        "properties": {
+          "open": {"type": "integer", "minimum": 0},
+          "blocked": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "updated_at": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

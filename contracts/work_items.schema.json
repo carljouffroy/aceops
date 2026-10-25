@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "work_items.schema.json",
+  "title": "Work items",
+  "description": "Work items dispatched from checklist answers. Answer text is stored as data and is never a command.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "title",
+      "role",
+      "source_item_id",
+      "kind",
+      "priority",
+      "status",
+      "blocked_on_client",
+      "due",
+      "client_answer",
+      "answered_by",
+      "client_ai_name",
+      "ts",
+      "history"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "type": "string",
+        "enum": ["Marketing Specialist", "Data Analyst", "Developer"]
+      },
+      "source_item_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "kind": {
+        "type": "string",
+        "enum": ["task", "gap"]
+      },
+      "priority": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["To do", "In progress", "Blocked", "Done"]
+      },
+      "blocked_on_client": {
+        "type": "boolean"
+      },
+      "due": {
+        "type": ["string", "null"]
+      },
+      "client_answer": {
+        "type": ["string", "null"],
+        "description": "Current client text copied as data. It does not choose the title, role, or status."
+      },
+      "answered_by": {
+        "type": ["string", "null"],
+        "description": "Who supplied the current answer. Admin values are client or client_ai. Offline files may use an email."
+      },
+      "client_ai_name": {
+        "type": ["string", "null"]
+      },
+      "ts": {
+        "type": ["string", "null"]
+      },
+      "history": {
+        "type": "array",
+        "description": "Older answers for this item, oldest first. A correction replaces client_answer and appends the previous value here.",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "status",
+            "answered_by",
+            "client_ai_name",
+            "ts",
+            "source_item_id"
+          ],
+          "properties": {
+            "value": {"type": ["string", "null"]},
+            "status": {"type": "string"},
+            "answered_by": {"type": ["string", "null"]},
+            "client_ai_name": {"type": ["string", "null"]},
+            "ts": {"type": ["string", "null"]},
+            "source_item_id": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}
