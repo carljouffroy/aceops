@@ -14,8 +14,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from sdlc import engine, gates
-from sdlc.config import DEFAULT_TEAM, OWNER_ROLE, SOURCES, mcp_port
+from sdlc import engine, gates, pipeline
+from sdlc.config import AGENT_NAMES, DEFAULT_TEAM, OWNER_ROLE, SOURCES, mcp_port
 from sdlc.store import Workspace
 
 WEB = Path(__file__).with_name("web")
@@ -27,6 +27,8 @@ def page() -> str:
     html = (WEB / "index.html").read_text(encoding="utf-8")
     return html.replace("/*__THEME__*/", (WEB / "theme.css").read_text(encoding="utf-8"), 1)
 CONSOLE_HEADER = "x-ace-console"
+CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "[::1]", "testserver")
 
 
 class Actor(BaseModel):
@@ -65,6 +67,10 @@ class Source(BaseModel):
     source: Literal["live", "sample"]
 
 
+class Autopilot(Actor):
+    on: bool
+
+
 class Console:
     """Which data source the console is showing."""
 
@@ -101,6 +107,11 @@ def view(console: Console, state: dict) -> dict:
             "brd": bool(ws.brd()),
         },
         "agent": {**state.get("agent", {}), "last_sync": engine.LAST_SYNC.get(str(ws.state_dir)), "mcp_url": f"http://127.0.0.1:{mcp_port()}/mcp"},
+        "autopilot": bool(state.get("autopilot")),
+        "isolation": pipeline.isolation_mode(),
+        "agent_names": list(AGENT_NAMES),
+        "agents": pipeline.agents_view(state),
+        "runs": state.get("runs", [])[-60:],
         "version": state.get("version", 0),
         "specs": state["specs"],
         "tickets": state["tickets"],
@@ -117,10 +128,20 @@ def create_app(console: Console | None = None) -> FastAPI:
     app.state.console = console
 
     @app.middleware("http")
-    async def guard_writes(request: Request, call_next):
+    async def guard_requests(request: Request, call_next):
+        # Loopback only: a DNS-rebound or spoofed Host gets nothing, and the page can't be framed.
+        host = (request.headers.get("host") or "").rsplit(":", 1)[0] if not (request.headers.get("host") or "").startswith("[") else (request.headers.get("host") or "").split("]")[0] + "]"
+        if host not in LOCAL_HOSTS:
+            return JSONResponse({"detail": "The console answers only on this machine."}, status_code=421)
         if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.headers.get(CONSOLE_HEADER) != "1":
             return JSONResponse({"detail": "Write requests must come from the ACE Ops console."}, status_code=403)
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        if request.url.path == "/":
+            response.headers["Content-Security-Policy"] = CSP
+        return response
 
     def run(fn, *args, **kwargs) -> dict:
         try:
@@ -158,7 +179,14 @@ def create_app(console: Console | None = None) -> FastAPI:
 
     @app.post("/api/agent/run")
     def agent_run() -> dict:
-        return view(console, engine.sync(console.workspace()))
+        ws = console.workspace()
+        pipeline.tick(ws)
+        return view(console, engine.sync(ws))
+
+    @app.post("/api/autopilot")
+    def autopilot(body: Autopilot) -> dict:
+        # Only flips the flag; the always-on loop runs the agents within a few seconds.
+        return run(gates.set_autopilot, body.actor, body.on)
 
     @app.post("/api/reset")
     def reset() -> dict:

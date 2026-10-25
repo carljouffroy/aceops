@@ -16,7 +16,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sdlc.config import BUNDLE_PATH, DEPENDENCIES_PATH, ROOT, SOURCES
+from sdlc.config import BUNDLE_PATH, DELIVERY_ROLES, DEPENDENCIES_PATH, ROOT, SOURCES, autopilot_default
 
 MAX_EVENTS = 400
 TICKET_ID = re.compile(r"SPEC-[0-9]{3}-T[0-9]{2}")
@@ -68,6 +68,8 @@ def empty_state() -> dict:
         "events": [],
         "last_sync": None,
         "agent": {"mode": "rules", "model": None, "error": None},
+        "autopilot": autopilot_default(),
+        "runs": [],
     }
 
 
@@ -97,8 +99,17 @@ class Workspace:
         return read_json(self.deps_path, {}).get("depends_on", {})
 
     def work_items(self) -> list[dict]:
+        """Dispatched work items; a malformed row is skipped rather than stopping the loop."""
         rows = read_json(self.input_dir / "work_items.json", [])
-        return [row for row in rows if isinstance(row, dict) and isinstance(row.get("id"), str)]
+        return [
+            row
+            for row in (rows if isinstance(rows, list) else [])
+            if isinstance(row, dict)
+            and isinstance(row.get("id"), str)
+            and isinstance(row.get("source_item_id"), str)
+            and row.get("role") in DELIVERY_ROLES
+            and row.get("kind") in ("task", "gap")
+        ]
 
     def overrides(self) -> dict[str, str]:
         payload = read_json(self.input_dir / "overrides.json", {})

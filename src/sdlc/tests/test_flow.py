@@ -216,6 +216,68 @@ def test_client_update_is_sent_once_by_the_owner(ws):
     assert err.value.status == 409
 
 
+# answers that change after the work started
+
+
+def _change_answer(ws: Workspace, item_id: str, text: str) -> None:
+    path = ws.input_dir / "work_items.json"
+    rows = json.loads(path.read_text())
+    for row in rows:
+        if row["source_item_id"] == item_id:
+            row["client_answer"] = text
+    path.write_text(json.dumps(rows))
+
+
+def test_changed_answer_resets_a_review_and_reopens_a_reviewed_ticket(ws):
+    engine.sync(ws)
+    gates.approve_spec(ws, "SPEC-003", OWNER)
+    gates.accept_ticket(ws, "SPEC-003-T01", DA1)
+    state = gates.submit_for_review(ws, "SPEC-003-T01", DA1)
+    assert ticket(state, "SPEC-003-T01")["acceptance_criteria"][0]["result"] == "met"
+    _change_answer(ws, "R1", "COGS now EUR 9.99 only")
+    state = engine.sync(ws)
+    t = ticket(state, "SPEC-003-T01")
+    assert t["stage"] == "review" and t["client_answer"] == "COGS now EUR 9.99 only"
+    assert t["acceptance_criteria"][0]["result"] == "not_met"  # 4.10 and 18.00 no longer trace
+    gates.save_draft(ws, "SPEC-003-T01", DA1, "# x\n\n## Working draft\n\nCost ≈9.99 per unit.\n") if False else None
+    _change_answer(ws, "R1", "COGS lives in the Shopify metafield custom.cost_price. Example: stoneware mug NL-MUG-04 costs EUR 4.10 and sells at EUR 18.00.")
+    state = engine.sync(ws)
+    assert ticket(state, "SPEC-003-T01")["acceptance_criteria"][0]["result"] == "met"
+    gates.review_ticket(ws, "SPEC-003-T01", DA2, "approved")
+    _change_answer(ws, "R1", "COGS now EUR 9.99 only")
+    state = engine.sync(ws)
+    t = ticket(state, "SPEC-003-T01")
+    assert t["stage"] == "review" and t["review"] is None
+    assert any(e["kind"] == "answer_changed" and "back in review" in e["message"] for e in state["events"])
+
+
+def test_trace_check_reads_every_section_the_builder_wrote():
+    from sdlc.agent import _numbers, checked_text
+
+    draft = "# T\n\n## What the client told us\n\n> 61%\n\n## Findings\n\nRevenue 999 across 240 SKUs\n\n## Steps\n\n1. 7 steps\n"
+    assert _numbers(checked_text(draft)) == {999.0, 240.0}
+    assert _numbers("EUR 4,800,000 and 4.8 and 1,5") == {4800000.0, 4.8, 1.5}
+
+
+def test_edited_client_update_is_dropped_when_the_work_moves_on(ws):
+    engine.sync(ws)
+    state = gates.edit_client_update(ws, OWNER, "Custom text for Northline.")
+    assert state["status"]["client_update"]["draft"] == "Custom text for Northline."
+    state = gates.approve_spec(ws, "SPEC-003", OWNER)
+    assert state["status"]["client_update"]["draft"] != "Custom text for Northline."
+    assert any(e["kind"] == "update_stale" for e in state["events"])
+
+
+def test_a_malformed_work_item_is_skipped(ws):
+    path = ws.input_dir / "work_items.json"
+    rows = json.loads(path.read_text())
+    rows.append({"id": "WI-BAD", "title": "x", "role": "Intern", "source_item_id": 7, "kind": "task"})
+    path.write_text(json.dumps(rows))
+    state = engine.sync(ws)
+    assert len(state["specs"]) == 6
+    assert all("WI-BAD" not in s["source_work_item_ids"] for s in state["specs"])
+
+
 # contracts and local-only
 
 
@@ -249,7 +311,10 @@ def test_model_url_must_be_loopback(monkeypatch):
 def test_console_api_guards_writes_and_runs_gates(ws, monkeypatch):
     monkeypatch.setitem(config.SOURCES, "test", ws.input_dir)
     client = TestClient(create_app(Console("test")))
-    assert client.get("/").status_code == 200 and "ACE OPS" in client.get("/").text
+    page = client.get("/")
+    assert page.status_code == 200 and "ACE OPS" in page.text
+    assert page.headers["X-Frame-Options"] == "DENY" and "frame-ancestors 'none'" in page.headers["Content-Security-Policy"]
+    assert client.get("/api/state", headers={"Host": "evil.example:8792"}).status_code == 421
     state = client.get("/api/state").json()
     assert len(state["specs"]) == 6 and state["agent"]["mode"] == "rules"
     assert client.post("/api/specs/SPEC-003/approve", json={"actor": OWNER}).status_code == 403

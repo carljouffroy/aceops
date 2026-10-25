@@ -21,7 +21,8 @@
       </div>
       <span class="chip-dark" id="local" title="Where the model runs"><span class="dot"></span><span>On this machine</span></span>
       <span class="chip-dark" id="agent"><span class="dot pulse"></span><span>Agent starting…</span></span>
-      <button type="button" class="btn-dark" id="run">Run agent</button>
+      <button type="button" class="btn-dark" id="autopilot" title="Hand the gates to the stage agents, or take them back">Autopilot</button>
+      <button type="button" class="btn-dark" id="run">Run agents</button>
       <div class="persona"><label for="persona">Acting as</label><select id="persona"></select></div>
     </div>
   </header>
@@ -41,7 +42,13 @@
   const STAGE_LABEL = { tickets: "To accept", build: "Build", review: "Review", release: "Release", done: "Done" };
   const STAGE_HINT = { tickets: "G2 · role accepts", build: "agent drafts", review: "G3 · peer approves", release: "G4 · owner ships", done: "delivered" };
   const ROLE_CLASS = { "Marketing Specialist": "ms", "Data Analyst": "da", "Developer": "dev", "Project owner": "po" };
-  const S = { data: null, version: -1, sync: null, tab: "specs", persona: null, filter: "all", specFilter: "all", drawer: null, editing: false, editText: "", drafts: {}, pending: false, busy: null, brd: null, feed: "all", updateEditing: false, updateText: "" };
+  const S = { data: null, version: -1, sync: null, tab: "specs", persona: null, filter: "all", specFilter: "all", drawer: null, editing: false, editText: "", drafts: {}, pending: false, busy: null, brd: null, feed: "all", updateEditing: false, updateText: "", form: {} };
+  // Typed-but-unsent field values survive a poll re-render: keyed by ticket id + field.
+  function field(tag, key, attrs) {
+    const el = h(tag, Object.assign({}, attrs, { oninput: (e) => { S.form[key] = e.target.value; }, onchange: (e) => { S.form[key] = e.target.value; } }));
+    if (S.form[key] !== undefined) el.value = S.form[key];
+    return el;
+  }
 
   function store(key, value) { try { if (value === undefined) return localStorage.getItem(key); localStorage.setItem(key, value); } catch (e) { return null; } }
   S.persona = store("aceops.persona") || "Avery Park";
@@ -100,7 +107,7 @@
     return out;
   }
   function md(src) {
-    const root = h("div", { class: "md" }); const lines = String(src || "").split("\n"); let i = 0;
+    const root = h("div", { class: "md" }); const lines = String(src || "").replace(/\r\n?/g, "\n").split("\n"); let i = 0;
     const cells = (l) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
     while (i < lines.length) {
       const line = lines[i];
@@ -137,6 +144,7 @@
     S.busy = key; paintBusy();
     try {
       const view = await api(method, path, Object.assign({ actor: S.persona }, body || {}));
+      S.form = {};
       apply(view, true);
       if (okMsg) toast(okMsg);
       return true;
@@ -177,6 +185,9 @@
     const label = a.error ? "Model blocked: not local" : a.mode === "local_llm" ? `Local model · ${a.model}` : "Rules engine · no model needed";
     local.replaceChildren(h("span", { class: "dot" + (a.error ? " bad" : "") }), h("span", null, label));
     local.title = a.error || (a.base_url ? `Model endpoint ${a.base_url} (loopback only)` : "Runs entirely on this machine. Set INTERNAL_LLM_BASE_URL to a 127.0.0.1 model to add model polish.");
+    const ap = $("autopilot");
+    ap.replaceChildren(h("span", { class: "dot" + (d.autopilot ? " pulse" : " warn") }), h("span", null, d.autopilot ? "Autopilot on" : "Autopilot off"));
+    ap.classList.toggle("on", !!d.autopilot);
     paintAgent();
   }
   function paintAgent(err) {
@@ -349,13 +360,13 @@
         acts.append(hint(p.role === t.role ? "Accepting puts it on your plate." : `This is ${t.role} work; you're ${p.role}.`));
       } else acts.append(hint(`Accepted by ${t.assignee}. Moves to build when it's unblocked.`));
     } else if (t.stage === "build") {
-      const kind = h("select", { class: "txt" }, ["file", "link", "pr", "note"].map((k) => h("option", { value: k }, k)));
-      const ref = h("input", { class: "txt", placeholder: t.agent_draft ? `Defaults to the draft: ${t.agent_draft}` : "Link, file path, PR or note" });
+      const kind = field("select", t.id + ":kind", { class: "txt" }); kind.append(...["file", "link", "pr", "note"].map((k) => h("option", { value: k }, k))); if (S.form[t.id + ":kind"]) kind.value = S.form[t.id + ":kind"];
+      const ref = field("input", t.id + ":ref", { class: "txt", placeholder: t.agent_draft ? `Defaults to the draft: ${t.agent_draft}` : "Link, file path, PR or note" });
       panel.append(h("h4", null, "Submit for review"), h("div", { class: "row2" }, kind, ref), h("div", { style: "height:8px" }));
       acts.append(h("button", { class: "btn primary", "data-busy": "submit", onclick: () => act("submit", "POST", `/api/tickets/${t.id}/submit`, { kind: kind.value, ref: ref.value || null }, `${t.id} submitted. The agent pre-checked it.`) }, "Submit for review"));
       acts.append(hint(p.name === t.assignee ? "Edit the draft below first if you need to." : `Only ${t.assignee} can submit this.`));
     } else if (t.stage === "review") {
-      const notes = h("textarea", { class: "small", placeholder: "Notes for the builder (required when requesting changes)" });
+      const notes = field("textarea", t.id + ":notes", { class: "small", placeholder: "Notes for the builder (required when requesting changes)" });
       const failing = t.acceptance_criteria.some((c) => c.result === "not_met");
       panel.append(h("h4", null, "Review", h("span", { class: "gate-badge" }, "G3")), notes, h("div", { style: "height:8px" }));
       acts.append(h("button", { class: "btn ok", "data-busy": "approve-review", onclick: () => act("approve-review", "POST", `/api/tickets/${t.id}/review`, { decision: "approved", notes: notes.value }, `${t.id} approved. Ready for release.`) }, "Approve"),
@@ -430,13 +441,29 @@
 
   // ---------- activity & brd ----------
   function eventRow(e) {
-    const agent = e.actor === "SDLC agent";
+    const agent = /agent$/i.test(e.actor);
     return h("div", { class: "ev" }, agent ? h("span", { class: "av agent-av", title: "SDLC agent" }, "✦") : avatar(e.actor), h("div", null, h("span", { class: "who" }, e.actor), " ", e.message), h("time", { datetime: e.at, title: e.at }, ago(e.at)));
+  }
+  function agentsPanel() {
+    const d = S.data;
+    const cards = d.agents.map((a) => {
+      const last = a.last;
+      return h("div", { class: "agentcard" + (a.pending ? " busy" : "") },
+        h("div", { class: "ah" }, h("span", { class: "av agent-av" }, "✦"), h("div", null, h("b", null, a.name), h("div", { class: "sub" }, `stage · ${a.stage}`)), h("span", { class: "chip" + (a.pending ? " hot" : "") }, a.pending ? `${a.pending} ready` : "idle")),
+        h("div", { class: "sub reads" }, "reads only: ", h("span", { class: "mono" }, a.reads.join(", "))),
+        h("div", { class: "aq" }, a.system_prompt),
+        h("div", { class: "sub" }, `${a.runs} run(s)` + (last ? ` · last ${ago(last.at)}: ${last.action}${last.pid ? ` · pid ${last.pid}` : ""} · ${last.ms} ms` : "")),
+        last && last.detail ? h("div", { class: "sub last" }, last.detail) : null);
+    });
+    return h("div", { class: "card panel" },
+      h("h4", null, h("span", null, "Stage agents · one process per run · no shared context"), h("span", { class: d.autopilot ? "sent" : "chip" }, d.autopilot ? "autopilot on" : "autopilot off")),
+      h("div", { class: "agents" }, cards),
+      h("div", { class: "hint", style: "margin-top:10px" }, d.autopilot ? "The agents act on the gates under their own names; every run is logged below. Switch autopilot off to take the gates back." : "People hold the gates. Switch autopilot on and the agents take specs to released work, logging every step."));
   }
   function viewActivity() {
     let ev = S.data.events.slice().reverse();
-    if (S.feed === "agent") ev = ev.filter((e) => e.actor === "SDLC agent"); else if (S.feed === "people") ev = ev.filter((e) => e.actor !== "SDLC agent");
-    return h("div", { class: "card panel" }, h("h4", null, `Activity · ${ev.length}`), ev.length ? h("div", { class: "feed" }, ev.map(eventRow)) : h("div", { class: "hint" }, "Nothing yet."));
+    if (S.feed === "agent") ev = ev.filter((e) => /agent$/i.test(e.actor)); else if (S.feed === "people") ev = ev.filter((e) => !/agent$/i.test(e.actor));
+    return h("div", { class: "stack" }, agentsPanel(), h("div", { class: "card panel" }, h("h4", null, `Activity · ${ev.length}`), ev.length ? h("div", { class: "feed" }, ev.map(eventRow)) : h("div", { class: "hint" }, "Nothing yet.")));
   }
   function viewBrd() {
     const wrap = h("div", { class: "card panel" }, h("h4", null, "Business requirements (from intake)", h("span", { class: "tag-untrusted" }, "client data")));
@@ -464,8 +491,10 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("modal").classList.contains("on")) closeModal(); else if (S.drawer) closeDrawer(); } });
   document.querySelectorAll("[data-source]").forEach((b) => b.addEventListener("click", () => switchSource(b.dataset.source)));
   $("persona").addEventListener("change", (e) => { S.persona = e.target.value; store("aceops.persona", S.persona); toast(`Acting as ${me().name}, ${me().role}.`); render(); });
-  $("run").addEventListener("click", () => act("run", "POST", "/api/agent/run", {}, "Agent ran a sync."));
+  $("run").addEventListener("click", () => act("run", "POST", "/api/agent/run", {}, S.data && S.data.autopilot ? "Agents ran one pass." : "Agent ran a sync."));
   $("run").setAttribute("data-busy", "run");
+  $("autopilot").addEventListener("click", () => act("autopilot", "POST", "/api/autopilot", { on: !(S.data && S.data.autopilot) }, S.data && S.data.autopilot ? "Autopilot off. People hold the gates." : "Autopilot on. The stage agents are working."));
+  $("autopilot").setAttribute("data-busy", "autopilot");
   setInterval(paintAgent, 1000);
   poll();
   </script>
