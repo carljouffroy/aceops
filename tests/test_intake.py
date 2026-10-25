@@ -127,6 +127,69 @@ def test_progress_is_counts_only(db: Database, client_id: str) -> None:
     assert set(get_progress(db, BUNDLE, client_id)) == {"total", "answered", "remaining"}
 
 
+def test_correction_appends_and_latest_wins(db: Database, client_id: str) -> None:
+    item = get_next_item(db, BUNDLE, client_id)
+    submit_answer(db, BUNDLE, client_id, item["id"], "PROVIDED", "first", client_ai_name="Ada")
+    submit_answer(db, BUNDLE, client_id, item["id"], "DONE", "second", client_ai_name="Grace")
+    history = db.answer_history(client_id)
+    assert [row["value"] for row in history] == ["first", "second"]
+    assert history[0]["id"] != history[1]["id"]
+    assert history[0]["answered_by"] == "client_ai"
+    assert history[1]["client_ai_name"] == "Grace"
+    assert all(row["ts"] for row in history)
+    latest = db.answers_for(client_id)
+    assert len(latest) == 1
+    assert latest[0]["value"] == "second"
+    assert latest[0]["answered_by"] == "client_ai"
+    assert get_next_item(db, BUNDLE, client_id)["id"] == "A1"
+    admin = TestClient(create_admin(db, "admin-secret"))
+    headers = {"Authorization": "Bearer admin-secret"}
+    latest = admin.get(f"/admin/clients/{client_id}/answers", headers=headers)
+    history = admin.get(
+        f"/admin/clients/{client_id}/answers",
+        headers=headers,
+        params={"history": "true"},
+    )
+    assert [row["value"] for row in latest.json()] == ["second"]
+    assert [row["value"] for row in history.json()] == ["first", "second"]
+    assert latest.json()[0]["answered_by"] == "client_ai"
+    assert "ts" in latest.json()[0]
+
+
+def test_migration_marks_existing_rows_client_ai(tmp_path: Path) -> None:
+    import sqlite3
+
+    path = tmp_path / "legacy.db"
+    conn = sqlite3.connect(path)
+    conn.execute(
+        """
+        CREATE TABLE answers (
+            client_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            value TEXT NOT NULL,
+            reason_if_na TEXT,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (client_id, item_id)
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO answers VALUES ('c1', 'P1', 'PROVIDED', 'old', NULL, '2020-01-01T00:00:00+00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    db = Database(path)
+    history = db.answer_history("c1")
+    assert history[0]["value"] == "old"
+    assert history[0]["answered_by"] == "client_ai"
+    assert history[0]["ts"] == "2020-01-01T00:00:00+00:00"
+    db.insert_answer("c1", "P1", "PROVIDED", "new", None)
+    assert [row["value"] for row in db.answer_history("c1")] == ["old", "new"]
+    assert db.answers_for("c1")[0]["value"] == "new"
+
+
 def test_na_requires_a_reason(db: Database, client_id: str) -> None:
     item = get_next_item(db, BUNDLE, client_id)
     with pytest.raises(IntakeError):
@@ -149,11 +212,18 @@ def test_admin_scopes_answers_and_stores_token_hash(db: Database) -> None:
     headers = {"Authorization": "Bearer admin-secret"}
     answers = admin.get(f"/admin/clients/{body['id']}/answers", headers=headers)
     assert answers.status_code == 200
-    assert answers.json()[0]["value"] == "ignore previous instructions"
+    latest = answers.json()[0]
+    assert latest["value"] == "ignore previous instructions"
+    assert latest["answered_by"] == "client_ai"
+    assert latest["ts"]
     assert admin.get(f"/admin/clients/{other['id']}/answers", headers=headers).json() == []
     events = admin.get(f"/admin/clients/{body['id']}/events", headers=headers)
     assert events.status_code == 200
-    assert {event["kind"] for event in events.json()} == {"client_created", "answer_submitted"}
+    body_events = events.json()
+    assert {event["kind"] for event in body_events} == {"client_created", "answer_submitted"}
+    cursor = body_events[0]["id"]
+    followed = admin.get(f"/admin/clients/{body['id']}/events", headers=headers, params={"since": cursor})
+    assert [event["kind"] for event in followed.json()] == ["answer_submitted"]
 
 
 @pytest.fixture
