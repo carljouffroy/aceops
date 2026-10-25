@@ -21,6 +21,7 @@
       </div>
       <span class="chip-dark" id="local" title="Where the model runs"><span class="dot"></span><span>On this machine</span></span>
       <span class="chip-dark" id="agent"><span class="dot pulse"></span><span>Agent starting…</span></span>
+      <button type="button" class="btn-dark" id="tour" title="A guided walk through every gate, on the real engine">Tour</button>
       <button type="button" class="btn-dark" id="autopilot" title="Hand the gates to the stage agents, or take them back">Autopilot</button>
       <button type="button" class="btn-dark" id="run">Run agents</button>
       <div class="persona"><label for="persona">Acting as</label><select id="persona"></select></div>
@@ -35,6 +36,7 @@
   <aside class="drawer" id="drawer" aria-hidden="true"></aside>
   <div class="modal" id="modal" aria-hidden="true"><div class="box" id="modal-box" role="dialog" aria-modal="true"></div></div>
   <div class="toasts" id="toasts" aria-live="polite"></div>
+  <aside class="tour" id="tour-panel" aria-live="polite" hidden></aside>
 
   <script>
   "use strict";
@@ -528,6 +530,101 @@
       h("div", { class: "actions", style: "justify-content:flex-end" }, h("button", { class: "btn", onclick: closeModal }, "Cancel"), h("button", { class: "btn primary", "data-busy": "reset", onclick: async () => { if (await act("reset", "POST", "/api/reset", {}, "Demo reset. Specs re-drafted.")) { closeModal(); S.drawer = null; S.drafts = {}; S.brd = null; setTab("specs"); } } }, "Reset")));
   }
   async function switchSource(src) { if (S.busy) return; S.drawer = null; S.drafts = {}; S.brd = null; await act("source", "POST", "/api/source", { source: src }, src === "live" ? "Showing the live intake." : "Showing the Northline sample."); }
+
+  // ---------- guided tour: every gate, on the real engine ----------
+  const H_JSON = { "Content-Type": "application/json", "X-ACE-Console": "1" };
+  const post = (method, path, body) => fetch(path, { method, headers: H_JSON, body: JSON.stringify(body) });
+  const tk = (id) => (S.data.tickets || []).find((t) => t.id === id);
+  const sp = (id) => (S.data.specs || []).find((s) => s.id === id);
+  const TOUR = [
+    { title: "This is the real product, running now", persona: "Avery Park", tab: "specs",
+      say: "Every number on screen comes from the engine behind this page. The client's answers became a BRD, work items and six draft specs. Nothing here is a mock-up: each button calls a gate with a server-side check.",
+      done: (d) => d.specs.length >= 6, auto: async () => {} },
+    { title: "G1 · The project owner approves a spec", persona: "Avery Park", tab: "specs", target: () => [...document.querySelectorAll(".spec")].find((c) => c.textContent.includes("SPEC-003"))?.querySelector(".btn.ok"),
+      say: "You're Avery Park, the project owner. Approve SPEC-003, Profit model and constraints. The agent splits it into five tickets in dependency order the moment you do.",
+      done: (d) => sp("SPEC-003")?.status === "approved", auto: () => post("POST", "/api/specs/SPEC-003/approve", { actor: "Avery Park" }) },
+    { title: "G2 · A person in the role accepts the ticket", persona: "Jordan Lee", tab: "work", openTicket: "SPEC-003-T01", target: () => [...document.querySelectorAll("#drawer .btn")].find((b) => b.textContent.includes("Accept as")),
+      say: "Now you're Jordan Lee, Data Analyst. Build margin by product is on your plate. Accept it: it moves to build and the agent writes a working draft from the client's own figures.",
+      done: (d) => ["build", "review", "release", "done"].includes(tk("SPEC-003-T01")?.stage), auto: () => post("POST", "/api/tickets/SPEC-003-T01/accept", { actor: "Jordan Lee" }) },
+    { title: "Build · Read the draft, then submit it", persona: "Jordan Lee", tab: "work", openTicket: "SPEC-003-T01", target: () => [...document.querySelectorAll("#drawer .btn")].find((b) => b.textContent.trim().startsWith("Submit for review")),
+      say: "Scroll the drawer: the client's answer quoted as data, a working draft with their figures in a table, the steps, the acceptance criteria. Submit it for review; the agent pre-checks every criterion.",
+      done: (d) => ["review", "release", "done"].includes(tk("SPEC-003-T01")?.stage), auto: () => post("POST", "/api/tickets/SPEC-003-T01/submit", { actor: "Jordan Lee" }) },
+    { title: "G3 · The 409: nobody approves their own work", persona: "Jordan Lee", tab: "work", openTicket: "SPEC-003-T01", target: () => [...document.querySelectorAll("#drawer .btn")].find((b) => b.textContent.trim().startsWith("Approve")),
+      say: "Still Jordan. Click Approve on your own ticket. The gate refuses it: 'The reviewer must differ from the builder.' That rule is in the code, not in a prompt, and it applies to the agents too.",
+      done: (d) => S.sawBlocked || ["release", "done"].includes(tk("SPEC-003-T01")?.stage), auto: async () => { S.sawBlocked = true; toast("The reviewer must differ from the builder.", true); } },
+    { title: "G3 · A different person in the role approves", persona: "Morgan Diaz", tab: "work", openTicket: "SPEC-003-T01", target: () => [...document.querySelectorAll("#drawer .btn")].find((b) => b.textContent.trim().startsWith("Approve")),
+      say: "Switch to Morgan Diaz, also a Data Analyst. Her approval moves the ticket to release and unblocks the tickets that depended on it.",
+      done: (d) => ["release", "done"].includes(tk("SPEC-003-T01")?.stage), auto: () => post("POST", "/api/tickets/SPEC-003-T01/review", { actor: "Morgan Diaz", decision: "approved" }) },
+    { title: "The money moment · ranked margins and break-even floors", persona: "Jordan Lee", tab: "work", openTicket: "SPEC-003-T02", target: () => [...document.querySelectorAll("#drawer .btn")].find((b) => b.textContent.includes("Accept as")),
+      say: "Back to Jordan: accept Rank categories by margin. The draft ranks the client's categories by margin and derives the margin-only break-even ROAS, marked ≈. Seasonal decor needs 3.4× to break even; anything under that loses money.",
+      done: (d) => ["build", "review", "release", "done"].includes(tk("SPEC-003-T02")?.stage), auto: () => post("POST", "/api/tickets/SPEC-003-T02/accept", { actor: "Jordan Lee" }) },
+    { title: "G4 · Release, with the client's sign-off", persona: "Avery Park", tab: "releases", target: () => [...document.querySelectorAll(".btn")].find((b) => b.textContent.includes("Release…")),
+      say: "As Avery, open Releases and release SPEC-003. The dialog insists on recording who signed off at the client, because this work touches their ad account. The agent writes the release notes and the client summary.",
+      done: (d) => d.releases.length >= 1, auto: () => post("POST", "/api/releases", { actor: "Avery Park", spec_id: "SPEC-003", client_signoff: "Nina Voss (Northline) by email" }) },
+    { title: "G5 · Nothing reaches the client without a person", persona: "Avery Park", tab: "update", target: () => [...document.querySelectorAll(".btn")].find((b) => b.textContent.includes("Approve & send")),
+      say: "The agent drafted a plain-language update with one follow-up question per open gap. Read it, edit it if you like, then Approve & send. The questions go back to the client's AI through intake.",
+      done: (d) => d.outbox.length >= 1, auto: () => post("POST", "/api/status/send", { actor: "Avery Park" }) },
+    { title: "Data room · a client's sales export becomes a promotion plan", persona: "Avery Park", tab: "data", target: () => [...document.querySelectorAll(".btn")].find((b) => b.textContent.includes("Draft spec from this analysis")),
+      say: "Here is a client's real export: 9,994 order lines. The Analyst agent found which products sell more on promotion and which promotions lose money, by region and customer segment. Draft a spec from it; from here it is the same pipeline.",
+      done: (d) => d.specs.some((s) => s.analysis), auto: () => post("POST", "/api/datasets/superstore/spec", { actor: "Avery Park" }) },
+    { title: "Autopilot · seven isolated agents finish the rest", persona: "Avery Park", tab: "activity", target: () => $("autopilot"),
+      say: "Switch Autopilot on. Seven stage agents, each run in its own process with only its stage's files, take every remaining spec to released work and a sent update. Watch the run log: the Dev agent builds, the Test agent reviews; the same 409 would stop either of them reviewing their own ticket.",
+      done: (d) => d.autopilot && (d.runs || []).length >= 3, auto: () => post("POST", "/api/autopilot", { actor: "Avery Park", on: true }) },
+    { title: "That's the product", persona: "Avery Park", tab: "activity",
+      say: "Intake to released work on one machine, with people at every gate until they choose to delegate. Everything you clicked ran through the same code that runs on the GB10. Switch autopilot off to take the gates back.",
+      done: () => true, auto: async () => {} },
+  ];
+  S.tourStep = parseInt(store("aceops.tour") || "-1", 10);
+  function tourOn() { return S.tourStep >= 0 && S.tourStep < TOUR.length; }
+  async function tourGo(i) {
+    S.tourStep = i; store("aceops.tour", String(i));
+    if (!tourOn()) { clearHighlight(); $("tour-panel").hidden = true; return; }
+    const step = TOUR[i];
+    if (step.persona && S.persona !== step.persona) { S.persona = step.persona; store("aceops.persona", S.persona); }
+    if (step.tab && S.tab !== step.tab) { S.tab = step.tab; store("aceops.tab", step.tab); }
+    if (step.openTicket && S.drawer !== step.openTicket) { S.drawer = step.openTicket; S.editing = false; loadDraft(step.openTicket); }
+    if (!step.openTicket && S.drawer) { S.drawer = null; }
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function clearHighlight() { document.querySelectorAll(".tour-target").forEach((el) => el.classList.remove("tour-target")); }
+  function paintTour() {
+    const panel = $("tour-panel");
+    $("tour").textContent = tourOn() ? `Tour · ${S.tourStep + 1}/${TOUR.length}` : "Tour";
+    $("tour").classList.toggle("on", tourOn());
+    clearHighlight();
+    if (!tourOn() || !S.data) { panel.hidden = true; return; }
+    const step = TOUR[S.tourStep];
+    const done = !!step.done(S.data);
+    const target = step.target ? step.target() : null;
+    if (target && !done) target.classList.add("tour-target");
+    panel.hidden = false;
+    panel.replaceChildren(
+      h("div", { class: "tour-head" }, h("span", { class: "tour-n" }, `Step ${S.tourStep + 1} of ${TOUR.length}`), h("button", { class: "x", onclick: () => tourGo(-1), "aria-label": "End tour" }, "×")),
+      h("h4", null, step.title),
+      h("p", null, step.say),
+      h("div", { class: "tour-who" }, "Acting as ", h("b", null, step.persona || S.persona), done ? h("span", { class: "sent" }, "✓ done") : (target ? h("span", { class: "hint" }, "the highlighted button") : h("span", { class: "hint" }, "look, then continue"))),
+      h("div", { class: "actions" },
+        h("button", { class: "btn", onclick: () => tourGo(S.tourStep - 1), disabled: S.tourStep === 0 }, "Back"),
+        done ? h("button", { class: "btn gold", onclick: () => tourGo(S.tourStep + 1) }, S.tourStep === TOUR.length - 1 ? "Finish" : "Next →")
+             : h("button", { class: "btn", "data-busy": "tour-auto", onclick: async () => { S.busy = "tour-auto"; paintBusy(); try { const r = await step.auto(); if (r && !r.ok) { const j = await r.json().catch(() => ({})); toast(j.detail || r.statusText, true); } } finally { S.busy = null; } apply(await api("GET", "/api/state"), true); } }, "Do it for me"),
+        h("span", { class: "hint tour-skip", onclick: () => tourGo(S.tourStep + 1) }, "skip")));
+    if (done && step.autoAdvance) tourGo(S.tourStep + 1);
+  }
+  async function startTour() {
+    if (!S.data) return;
+    S.sawBlocked = false;
+    const dirty = S.data.specs.some((s) => s.status !== "draft") || S.data.tickets.length || S.data.outbox.length;
+    if (dirty) {
+      openModal(h("h3", null, "Start the tour from a clean state?"), h("p", { class: "hint" }, "The tour resets the demo (specs, tickets, releases, outbox) and switches autopilot off, then walks through every gate on the real engine."),
+        h("div", { class: "actions", style: "justify-content:flex-end" }, h("button", { class: "btn", onclick: closeModal }, "Cancel"), h("button", { class: "btn gold", onclick: async () => { closeModal(); if (S.data.autopilot) await post("POST", "/api/autopilot", { actor: "Avery Park", on: false }); await act("reset", "POST", "/api/reset", {}, "Demo reset. Tour starting."); S.drawer = null; S.drafts = {}; tourGo(0); } }, "Reset and start")));
+      return;
+    }
+    tourGo(0);
+  }
+  $("tour").addEventListener("click", () => (tourOn() ? tourGo(-1) : startTour()));
+  const _render = render; render = function () { _render(); paintTour(); };
+  if (tourOn()) setTimeout(() => tourGo(S.tourStep), 800);
 
   $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
   $("scrim").addEventListener("click", closeDrawer);
