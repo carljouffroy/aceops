@@ -16,7 +16,9 @@ SENTENCE = re.compile(r"\.(?=\s|$)|\n|;")
 LIST_SPLIT = re.compile(r",(?!\d)")
 LIST_ITEM = re.compile(r"([A-Za-z][A-Za-z &/'-]*?)\s+((?:EUR\s*)?\d+(?:\.\d+)?\s*%?)")
 FIRST_NUMBER = re.compile(r"(?<![\w/.-])(?:EUR\s*)?\d")
-NUMBER = re.compile(r"(?<![\w≈.#/-])(\d+(?:[.,]\d+)?)(?![\w])")
+NUMBER = re.compile(r"(?<![\w≈.#/-])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)(?![\w])")
+# Sections that quote the client or the template; every other section is checked for untraced numbers.
+QUOTED_HEADINGS = ("## Why this matters", "## What the client told us", "## Steps", "## Acceptance criteria")
 ACCOUNT_ID = re.compile(r"\b(?:G-[A-Z0-9]{6,}|\d{3}-\d{3}-\d{4})\b")
 
 WORKING = "## Working draft"
@@ -188,19 +190,27 @@ def draft_artifact(ticket: dict, bundle_item: dict | None, answers: dict[str, st
 def _numbers(text: str) -> set[float]:
     found = set()
     for raw in NUMBER.findall(text):
+        cleaned = raw.replace(",", "") if re.fullmatch(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?", raw) else raw.replace(",", ".")
         try:
-            found.add(round(float(raw.replace(",", "")), 4))
+            found.add(round(float(cleaned), 4))
         except ValueError:
             continue
     return found
 
 
+def is_checked_heading(line: str) -> bool:
+    """True for sections whose numbers must trace to a client answer or carry ≈."""
+    return not line.startswith(QUOTED_HEADINGS)
+
+
 def checked_text(draft: str) -> str:
-    """The working draft and any model summary: the parts the trace check reads."""
-    keep, on = [], False
+    """Everything the builder wrote: all sections except the ones that quote the client or the template."""
+    keep, on = [], True
     for line in draft.splitlines():
         if line.startswith("## "):
-            on = line.startswith(WORKING) or line.startswith("## Summary")
+            on = is_checked_heading(line)
+            continue
+        if line.startswith("# "):
             continue
         if on and not line.startswith("|---"):
             keep.append(line)

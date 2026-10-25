@@ -1,4 +1,4 @@
-"""The five human gates, plus build-stage edits. The agent has no path to these.
+"""The five human gates, plus build-stage edits and the autopilot switch.
 
 G1 approve or reject a spec (project owner)
 G2 accept a ticket (someone in the ticket's role)
@@ -9,12 +9,16 @@ G5 send the client update (project owner)
 
 Each function checks who is acting, changes state, then runs the agent sync so
 its follow-on work (tickets, drafts, pre-checks, status) happens at once.
+
+Stage agents (config.AGENT_NAMES) may act on gates only while autopilot is on.
+They act through the pipeline, under their own names, so every decision is
+logged; the agent MCP server still has no gate tool at all.
 """
 
 from __future__ import annotations
 
 from sdlc import agent, engine
-from sdlc.config import DEFAULT_TEAM, OWNER_ROLE
+from sdlc.config import AGENT_NAMES, DEFAULT_TEAM, OWNER_ROLE
 from sdlc.store import Workspace, emit, now_iso
 
 EVIDENCE_KINDS = ("link", "file", "pr", "note")
@@ -30,15 +34,28 @@ class GateError(Exception):
 def person(name: str, team=DEFAULT_TEAM) -> dict:
     for member in team:
         if member["name"] == name:
-            return member
+            return {**member, "agent": False}
+    if name in AGENT_NAMES:
+        return {"name": name, "role": "*", "agent": True}
     raise GateError(403, f"{name or 'Someone'} isn't on the team.")
 
 
-def _owner(name: str) -> dict:
-    actor = person(name)
-    if actor["role"] != OWNER_ROLE:
-        raise GateError(403, f"Only the project owner can do this. {actor['name']} is a {actor['role']}.")
-    return actor
+def _allow(state: dict, who: dict) -> dict:
+    if who["agent"] and not state.get("autopilot"):
+        raise GateError(403, f"Autopilot is off: {who['name']} can't act on a gate. A person decides, or switch autopilot on.")
+    return who
+
+
+def _owner(state: dict, name: str) -> dict:
+    who = _allow(state, person(name))
+    if not who["agent"] and who["role"] != OWNER_ROLE:
+        raise GateError(403, f"Only the project owner can do this. {who['name']} is a {who['role']}.")
+    return who
+
+
+def _builder_side(who: dict, ticket: dict) -> bool:
+    """The assignee, or any agent when an agent holds the ticket."""
+    return who["name"] == ticket.get("assignee") or (who["agent"] and ticket.get("assignee") in AGENT_NAMES)
 
 
 def _spec(state: dict, spec_id: str) -> dict:
@@ -63,7 +80,7 @@ def _finish(ws: Workspace, state: dict) -> dict:
 def approve_spec(ws: Workspace, spec_id: str, actor: str, note: str | None = None) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = _owner(actor)
+        who = _owner(state, actor)
         spec = _spec(state, spec_id)
         if spec["status"] != "draft":
             raise GateError(409, f"{spec_id} is {spec['status']}, not a draft.")
@@ -76,7 +93,7 @@ def approve_spec(ws: Workspace, spec_id: str, actor: str, note: str | None = Non
 def reject_spec(ws: Workspace, spec_id: str, actor: str, reason: str) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = _owner(actor)
+        who = _owner(state, actor)
         spec = _spec(state, spec_id)
         if spec["status"] != "draft":
             raise GateError(409, f"{spec_id} is {spec['status']}, not a draft.")
@@ -92,9 +109,9 @@ def reject_spec(ws: Workspace, spec_id: str, actor: str, reason: str) -> dict:
 def accept_ticket(ws: Workspace, ticket_id: str, actor: str) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = person(actor)
+        who = _allow(state, person(actor))
         ticket = _ticket(state, ticket_id)
-        if who["role"] != ticket["role"]:
+        if not who["agent"] and who["role"] != ticket["role"]:
             raise GateError(403, f"{ticket_id} is {ticket['role']} work. {who['name']} is a {who['role']}.")
         if ticket["stage"] != "tickets" or ticket.get("assignee"):
             raise GateError(409, f"{ticket_id} is already accepted by {ticket.get('assignee')}.")
@@ -103,19 +120,21 @@ def accept_ticket(ws: Workspace, ticket_id: str, actor: str) -> dict:
         return _finish(ws, state)
 
 
-def save_draft(ws: Workspace, ticket_id: str, actor: str, text: str) -> dict:
+def save_draft(ws: Workspace, ticket_id: str, actor: str, text: str, rounds: int | None = None) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = person(actor)
+        who = _allow(state, person(actor))
         ticket = _ticket(state, ticket_id)
         if ticket["stage"] != "build":
             raise GateError(409, f"{ticket_id} is in {ticket['stage']}; drafts can only change in build.")
-        if who["name"] != ticket.get("assignee"):
+        if not _builder_side(who, ticket):
             raise GateError(403, f"Only {ticket.get('assignee')} can edit this draft.")
         if not text.strip():
             raise GateError(422, "The draft can't be empty.")
         ws.write_draft(ticket_id, text if text.endswith("\n") else text + "\n")
-        ticket["provenance"] = {**ticket["provenance"], "generated_by": "human", "model": None, "generated_at": now_iso()}
+        ticket["provenance"] = {**ticket["provenance"], "generated_by": "rules" if who["agent"] else "human", "model": None, "generated_at": now_iso()}
+        if rounds is not None:
+            ticket["autopilot_rounds"] = int(rounds)
         emit(state, who["name"], "draft_edited", ticket_id, f"Edited the {ticket_id} draft.")
         return _finish(ws, state)
 
@@ -123,11 +142,11 @@ def save_draft(ws: Workspace, ticket_id: str, actor: str, text: str) -> dict:
 def submit_for_review(ws: Workspace, ticket_id: str, actor: str, kind: str = "file", ref: str | None = None) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = person(actor)
+        who = _allow(state, person(actor))
         ticket = _ticket(state, ticket_id)
         if ticket["stage"] != "build":
             raise GateError(409, f"{ticket_id} is in {ticket['stage']}, not build.")
-        if who["name"] != ticket.get("assignee"):
+        if not _builder_side(who, ticket):
             raise GateError(403, f"Only {ticket.get('assignee')} can submit {ticket_id}.")
         if kind not in EVIDENCE_KINDS:
             raise GateError(422, f"Evidence kind must be one of {', '.join(EVIDENCE_KINDS)}.")
@@ -137,6 +156,7 @@ def submit_for_review(ws: Workspace, ticket_id: str, actor: str, kind: str = "fi
         ticket["evidence"].append({"kind": kind, "ref": ref, "added_by": who["name"], "at": now_iso()})
         ticket["stage"] = "review"
         ticket["review"] = None
+        ticket["needs_human"] = None
         ticket["acceptance_criteria"] = [{**c, "result": None, "note": None} for c in ticket["acceptance_criteria"]]
         emit(state, who["name"], "submitted", ticket_id, f"Submitted {ticket_id} for review with {kind} evidence.")
         return _finish(ws, state)
@@ -145,13 +165,13 @@ def submit_for_review(ws: Workspace, ticket_id: str, actor: str, kind: str = "fi
 def review_ticket(ws: Workspace, ticket_id: str, actor: str, decision: str, notes: str | None = None) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = person(actor)
+        who = _allow(state, person(actor))
         ticket = _ticket(state, ticket_id)
         if ticket["stage"] != "review":
             raise GateError(409, f"{ticket_id} is in {ticket['stage']}, not review.")
         if who["name"] == ticket.get("assignee"):
             raise GateError(409, "The reviewer must differ from the builder.")
-        if who["role"] != ticket["role"]:
+        if not who["agent"] and who["role"] != ticket["role"]:
             raise GateError(403, f"A {ticket['role']} reviews {ticket_id}. {who['name']} is a {who['role']}.")
         if decision not in ("approved", "changes_requested"):
             raise GateError(422, "Decision is approved or changes_requested.")
@@ -171,10 +191,21 @@ def review_ticket(ws: Workspace, ticket_id: str, actor: str, decision: str, note
         return _finish(ws, state)
 
 
+def mark_needs_human(ws: Workspace, ticket_id: str, actor: str, note: str) -> dict:
+    """An agent gives up on a ticket and says why; the board shows it until a person acts."""
+    with ws.lock:
+        state = engine.sync(ws)
+        who = _allow(state, person(actor))
+        ticket = _ticket(state, ticket_id)
+        ticket["needs_human"] = (note or "").strip() or "An agent asked for a person to look at this."
+        emit(state, who["name"], "needs_human", ticket_id, f"{ticket_id} needs a person: {ticket['needs_human']}")
+        return _finish(ws, state)
+
+
 def release_spec(ws: Workspace, spec_id: str, actor: str, client_signoff: str | None = None, notes: str | None = None) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = _owner(actor)
+        who = _owner(state, actor)
         spec = _spec(state, spec_id)
         ready = [t for t in state["tickets"] if t["spec_id"] == spec_id and t["stage"] == "release"]
         if not ready:
@@ -209,10 +240,10 @@ def release_spec(ws: Workspace, spec_id: str, actor: str, client_signoff: str | 
 def edit_client_update(ws: Workspace, actor: str, text: str) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = _owner(actor)
+        who = _owner(state, actor)
         if not text.strip():
             raise GateError(422, "The update can't be empty.")
-        state["client_update_override"] = text.strip()
+        state["client_update_override"] = {"text": text.strip(), "rules_text": state.get("rules_update")}
         emit(state, who["name"], "update_edited", "status", "Edited the client update draft.")
         return _finish(ws, state)
 
@@ -220,7 +251,7 @@ def edit_client_update(ws: Workspace, actor: str, text: str) -> dict:
 def send_client_update(ws: Workspace, actor: str) -> dict:
     with ws.lock:
         state = engine.sync(ws)
-        who = _owner(actor)
+        who = _owner(state, actor)
         status = state.get("status")
         if not status:
             raise GateError(409, "There's no status report yet.")
@@ -237,8 +268,23 @@ def send_client_update(ws: Workspace, actor: str) -> dict:
                 "follow_up_questions": [{"source_item_id": g["source_item_id"], "question": g["question"]} for g in status["open_gaps"]],
                 "channel": "client outbox (local)",
                 "rules_text": state.get("rules_update"),
+                "releases": len(state["releases"]),
             }
         )
         state.pop("client_update_override", None)
         emit(state, who["name"], "update_sent", "status", f"Sent the client update with {len(status['open_gaps'])} follow-up question(s) (G5).")
+        return _finish(ws, state)
+
+
+def set_autopilot(ws: Workspace, actor: str, on: bool) -> dict:
+    """Only a person who owns the project hands the gates to the agents, or takes them back."""
+    with ws.lock:
+        state = engine.sync(ws)
+        who = person(actor)
+        if who["agent"]:
+            raise GateError(403, "An agent can't switch autopilot. A person decides.")
+        if who["role"] != OWNER_ROLE:
+            raise GateError(403, f"Only the project owner switches autopilot. {who['name']} is a {who['role']}.")
+        state["autopilot"] = bool(on)
+        emit(state, who["name"], "autopilot_on" if on else "autopilot_off", "pipeline", "Autopilot on: the stage agents act on the gates under their own names." if on else "Autopilot off: only people act on the gates.")
         return _finish(ws, state)

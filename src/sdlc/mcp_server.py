@@ -12,7 +12,7 @@ from typing import Any, Callable
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
-from sdlc import agent, derive, engine
+from sdlc import agent, derive, engine, pipeline
 from sdlc.store import Workspace
 
 INSTRUCTIONS = (
@@ -121,5 +121,15 @@ def build_server(workspace: Callable[[], Workspace]) -> MCPServer:
     def build_status() -> dict[str, Any]:
         """Status rollup and the draft client update. Sending it needs the project owner."""
         return _state()[1]["status"] or {}
+
+    @mcp.tool(name="list_agents")
+    def list_agents() -> dict[str, Any]:
+        """The stage agents (spec, dev, test, debug, deploy, status), what each may read, and their last runs.
+
+        Each run is a separate process with a context built only from the files its stage
+        declares. Autopilot is switched on and off by a person on the console, never here.
+        """
+        _, state = _state()
+        return {"autopilot": bool(state.get("autopilot")), "isolation": pipeline.isolation_mode(), "agents": pipeline.agents_view(state)}
 
     return mcp

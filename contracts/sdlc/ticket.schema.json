@@ -62,7 +62,9 @@
     "spec_id": { "type": "string", "pattern": "^SPEC-[0-9]{3}$" },
     "spec_version": { "type": "integer", "minimum": 1 },
     "stage": { "enum": ["tickets", "build", "review", "release", "done"], "description": "Where the ticket is in the SDLC. 'tickets' means created but not yet accepted (gate G2)." },
-    "assignee": { "type": ["string", "null"], "description": "Person who accepted the ticket at G2. Null until then." },
+    "assignee": { "type": ["string", "null"], "description": "Person who accepted the ticket at G2 (or the Dev agent under autopilot). Null until then." },
+    "autopilot_rounds": { "type": "integer", "minimum": 0, "description": "How many times the Debug agent has fixed and resubmitted this ticket." },
+    "needs_human": { "type": ["string", "null"], "description": "Set when an agent gives up on the ticket; says why. Cleared on the next submit." },
     "acceptance_criteria": {
       "type": "array",
       "minItems": 1,

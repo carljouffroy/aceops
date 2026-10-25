@@ -76,7 +76,7 @@ person clicking a button. The agent drafts. People decide."
 
 **On screen:** the break-even table for Northline Goods. Margins count up, the margin-only floors
 grow as bars, the client's stated break-evens appear as gold ticks, the 3× dashed target line drops
-in, and the seasonal-decor bar turns red: 3.00× < ≈3.03×.
+in, and the seasonal-decor bar turns red: anything under its 3.4× break-even loses money, under ≈3.03× before shipping is even counted.
 
 **Say:** "This is the moment that pays for the product. Northline told our intake their margins:
 tableware fifty-eight percent, down to seasonal decor at thirty-three. Their own break-even after
@@ -180,8 +180,8 @@ you *start* the row.
 | 3:10 | Tyler | `data/out/brd.md` | open the file | "The BRD writes itself: eight sections, every line with who answered and when, and an open-gaps list." |
 | 3:50 | Tyler | Board → Developer → My plate | click the Blocked card | "Merchant Center access, blocked on the client. Nobody typed this ticket." |
 | 4:30 | Moorthy | SDLC console, Specs tab, Acting as Avery Park | **Approve** (G1) on SPEC-003 | "One spec per section. The owner approves the profit-model spec, and the agent splits it into five tickets in dependency order." |
-| 5:00 | Moorthy | Tickets, Acting as **Jordan Lee** | **Accept as Jordan Lee** (G2) on SPEC-003-T01, then on T02 | "A person in the role accepts; nobody gets work they didn't accept. The moment it enters build, the agent writes a draft from the client's own figures." |
-| 5:40 | Moorthy | Draft drawer for SPEC-003-T02 (break-even table) | scroll the draft | **Wow 2.** "Ranked by margin. Margin-only floors, marked derived. Seasonal decor's floor is three-point-oh-three. A three-x campaign loses money on every order." |
+| 5:00 | Moorthy | Work, Acting as **Jordan Lee** | **Accept as Jordan Lee** (G2) on SPEC-003-T01, then **Submit for review**; switch to **Morgan Diaz**, **Approve** (G3) | "A person in the role accepts; nobody gets work they didn't accept. The moment it enters build, the agent writes a draft from the client's own figures. A second person approves it, which unblocks the next ticket." (T02 depends on T01, so it has no draft until T01 passes review.) |
+| 5:40 | Moorthy | Acting as **Jordan Lee**: **Accept as Jordan Lee** on SPEC-003-T02, open its draft (break-even table) | scroll the draft | **Wow 2.** "Ranked by margin. Margin-only floors, marked derived. Seasonal decor's floor is three-point-oh-three and its break-even three-point-four; anything under that loses money on every order." |
 | 6:20 | Moorthy | Same ticket | **Submit for review** | "The agent pre-checks each criterion. The traceability check: every number traces to a client answer or carries the derived mark." |
 | 6:40 | Moorthy | Same ticket, still Acting as Jordan Lee | **Approve** (G3) | **Wow 3.** Red toast: 409, the reviewer must differ from the builder. "It can't. Not 'shouldn't'." |
 | 7:00 | Moorthy | Acting as **Morgan Diaz** | **Approve** (G3) | "A different person in the role approves." (Repeat accept → submit → approve for T01 if it isn't done; keep it brisk.) |
@@ -197,7 +197,15 @@ has finished: the client agent fails closed.
 
 ---
 
-## 3. Eight likely judge questions
+## 3. Nine likely judge questions
+
+0. **"You have an autopilot. So the agent can approve its own work after all?"**
+   No. Autopilot replaces the five people with six separate agents, one per stage, each run in its
+   own process with nothing but the files its stage declares. The Dev agent builds, the Test agent
+   reviews; the same 409 fires if an agent tries to review its own ticket. Only a human project
+   owner can switch it on, every run is logged with the agent's name, inputs and outcome, and the
+   agent MCP server still has no gate tool. What changed is who holds the pen, not whether anyone
+   can sign their own work.
 
 1. **"Where exactly are NemoClaw, OpenClaw or OpenShell in this?"**
    The always-on loops (the internal agent, the client agent and the SDLC service) run inside an
@@ -226,9 +234,9 @@ has finished: the client agent fails closed.
 
 6. **"If it runs with the model off, what is the AI actually doing?"**
    Rules are the floor: specs, tickets, the break-even table and the pre-check all work without a
-   model, which is what makes it safe to run unattended. The local model writes: the client answers,
-   the BRD wording, tighter acceptance criteria and the plain-language client update, and every
-   artifact records which path produced it.
+   model, which is what makes it safe to run unattended. The local model plays the client in the
+   demo, polishes the BRD wording and summarises each working draft for the builder, and every
+   artifact records which path produced it. Tighter criteria and client-update wording are next.
 
 7. **"Is this a product or ACE's internal tool?"**
    Internal today, with one customer, and we're honest that this is founder-market fit rather than

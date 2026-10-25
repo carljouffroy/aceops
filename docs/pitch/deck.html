@@ -315,7 +315,7 @@ h2 em { font-style: normal; color: var(--gold-2); }
     <div class="stat r" style="--i:4"><div class="n"><span data-count="12"></span><small>hours</small></div><div class="l">of senior time per onboarding, unbilled <span class="hyp">hypothesis</span></div></div>
   </div>
   <div class="strip r" style="--i:5"><span>Kickoff call</span><i>→</i><span>Checklist doc</span><i>→</i><span>Email ping-pong</span><i>→</i><span>Loom on granting access</span><i>→</i><span>A board typed by hand</span></div>
-  <p class="punch r" style="--i:6">Then the work starts on <em>revenue</em> numbers, not profit. Our demo client had never calculated break-even ROAS.</p>
+  <p class="punch r" style="--i:6">Then the work starts on <em>revenue</em> numbers, not profit. Most clients have never calculated break-even ROAS; Northline had, and the agent still checked it.</p>
   <div class="foot"><span>ACE OPS</span><span class="num"></span></div>
   <aside class="notes">
     <p><b>0:15–0:40.</b> "Onboarding is a kickoff call, a checklist in a doc, then weeks of email: who has Merchant Center access, what are your margins, where is the tracking. Nobody chases, and the answers never become assigned work. In our sample client, eight of thirty-two answers are still missing at kickoff. And when the campaigns finally start, they are optimized to revenue, not profit, because nobody calculated break-even."</p>
@@ -381,7 +381,7 @@ h2 em { font-style: normal; color: var(--gold-2); }
 <!-- 5 · the money moment -->
 <section class="slide" data-slide="5" aria-label="The money moment">
   <p class="eyebrow r" style="--i:0">The money moment · SPEC-003 Profit model · Northline Goods</p>
-  <h2 class="r" style="--i:1">A 3× campaign on seasonal decor <em>loses money.</em> The agent said so first.</h2>
+  <h2 class="r" style="--i:1">Seasonal decor needs 3.4× to break even. <em>The agent puts that next to every draft.</em></h2>
   <div class="chart r" style="--i:2">
     <div class="row head"><div>Category</div><div>Margin (R2)</div><div>Margin-only floor ≈ 1 ÷ margin &nbsp;·&nbsp; <span style="color:var(--gold-2)">|</span> client's break-even (R3)</div></div>
     <div class="row" style="--i:0"><div class="cat">Tableware</div><div class="m"><span data-count="58" data-delay="600"></span>%</div><div class="axis"><div class="bars"><div class="floor" style="--w:43%"><span class="v">≈<span data-count="1.72" data-dec="2" data-delay="1700"></span>×</span></div><div class="be" style="--x:52.5%"><span class="v">2.1×</span></div></div></div></div>
@@ -389,14 +389,14 @@ h2 em { font-style: normal; color: var(--gold-2); }
     <div class="row" style="--i:2"><div class="cat">Lighting</div><div class="m"><span data-count="41" data-delay="960"></span>%</div><div class="axis"><div class="bars"><div class="floor" style="--w:61%"><span class="v">≈<span data-count="2.44" data-dec="2" data-delay="2060"></span>×</span></div><div class="be" style="--x:72.5%"><span class="v">2.9×</span></div></div></div></div>
     <div class="row" style="--i:3"><div class="cat">Seasonal decor<small>the campaign on the table</small></div><div class="m"><span data-count="33" data-delay="1140"></span>%</div><div class="axis"><div class="bars loss"><div class="floor" style="--w:75.75%"><span class="v">≈<span data-count="3.03" data-dec="2" data-delay="2240"></span>×</span></div><div class="be" style="--x:85%"><span class="v">3.4×</span></div></div></div></div>
     <div class="row" style="min-height:0"><div></div><div></div><div class="ticks"><span style="left:0">0×</span><span style="left:25%">1×</span><span style="left:50%">2×</span><span style="left:100%">4×</span></div></div>
-    <div class="target"><span>3× campaign target</span></div>
+    <div class="target"><span>a 3× plan, for scale</span></div>
   </div>
-  <div class="verdict"><b>3.00× &lt; ≈3.03×</b> — at the campaign target, every seasonal-decor order loses money before shipping and returns are counted.</div>
+  <div class="verdict"><b>Under 3.4× seasonal decor loses money;</b> under ≈3.03× it loses money before shipping and returns are even counted. A draft that ignores this fails the review pre-check.</div>
   <p class="note r" style="--i:8">Floors are <em>derived</em> by the agent from the client's own R2 answer and marked ≈; the client's R3 break-even adds shipping and returns. A number that traces to no answer and isn't marked ≈ fails the review pre-check.</p>
   <div class="foot"><span>ACE OPS</span><span class="num"></span></div>
   <aside class="notes">
     <p><b>1:30–2:00.</b> "This is the money moment. Northline told our intake their margins: tableware fifty-eight percent down to seasonal decor at thirty-three. Their stated break-even, after shipping and returns, is two-point-one to three-point-four. The agent's draft ranks categories by margin and computes the margin-only floor from their own numbers, marked as derived. Seasonal decor's floor is three-point-oh-three. The campaign being planned targets three-x. Every order at that target loses money before you even count shipping and returns. A human would have found this in week six. The agent found it in the draft."</p>
-    <p>Arithmetic: 1/0.58 = 1.724, 1/0.46 = 2.174, 1/0.41 = 2.439, 1/0.33 = 3.030. The "3× campaign" is the scenario; make sure the planner wording matches what Riley Chen's ticket says on the day. In the console this is the draft on SPEC-003-T02 (Data Analyst).</p>
+    <p>Arithmetic: 1/0.58 = 1.724, 1/0.46 = 2.174, 1/0.41 = 2.439, 1/0.33 = 3.030. The dashed 3× line is for scale, not a client number: say "any plan under 3.4 on seasonal decor loses money, and the agent shows that next to every draft". In the console this is the draft on SPEC-003-T02 (Data Analyst); the floors come from the client's R2 answer, the break-evens from R3.</p>
   </aside>
 </section>
 
@@ -453,7 +453,7 @@ h2 em { font-style: normal; color: var(--gold-2); }
         <div>Board · My plate <code>:8790</code></div>
         <div>SDLC console <code>:8792</code></div>
         <div>Agent MCP <code>:8791/mcp</code></div>
-        <div>SDLC loop <code>every 5 s</code></div>
+        <div>SDLC loop <code>every 3 s</code></div>
         <div class="model"><span><span class="dot" style="display:inline-block;vertical-align:middle;margin-right:12px"></span>Local model · OpenAI-compatible endpoint</span><code>loopback only · 20 s timeout · rules fallback</code></div>
       </div>
       <div class="egress"><span>egress</span><div class="wireout"></div><div class="no"></div><div class="cloud">cloud · APIs · CDNs</div></div>
@@ -497,7 +497,7 @@ h2 em { font-style: normal; color: var(--gold-2); }
       <li><b>In-house growth teams</b> onboarding agencies and freelancers: same checklist, reversed.</li></ol></div>
     <div class="card r" style="--i:3"><h4>Pricing <span class="hyp">hypothesis</span></h4><div class="big">$<span data-count="500" data-delay="500"></span><small>/ month per agency</small></div>
       <p>up to 20 active clients; the box bought or leased.</p>
-      <p><b>12 h × $100/h ≈ $<span data-count="1200" data-fmt="int" data-delay="900"></span></b> saved per onboarding. Two a year cover it. Fixed box, not a token bill.</p></div>
+      <p><b>12 h × $100/h ≈ $<span data-count="1200" data-fmt="int" data-delay="900"></span></b> saved per onboarding. Five a year cover it. Fixed box, not a token bill.</p></div>
     <div class="card r" style="--i:4"><h4>Wedge → expansion</h4><div class="arrowflow">
       <div><b>One link.</b> The client's AI answers; an hour later: BRD, gap list, break-even table. Sells on its own.</div>
       <div><b>SDLC makes it recurring.</b> Specs, tickets, gated delivery, client updates for the life of the account.</div>
@@ -506,7 +506,7 @@ h2 em { font-style: normal; color: var(--gold-2); }
   <p class="whynow r" style="--i:5"><b>Why now:</b> owners already work inside AI assistants, and MCP lets them call another company's tools · a desk-side 128 GB box runs capable open models · NVIDIA's sandbox makes an unattended agent acceptable.</p>
   <div class="foot"><span>ACE OPS</span><span class="num"></span></div>
   <aside class="notes">
-    <p><b>2:50–2:58.</b> "Who pays? The agency owner. ACE is customer zero, and every Google Ads agency serving e-commerce has the same unbilled onboarding hours. Our pricing hypothesis is five hundred dollars a month per agency; twelve senior hours at a hundred dollars is twelve hundred saved per onboarding, so two a year pay for it. The wedge is intake plus break-even, which sells alone; the SDLC makes it recurring."</p>
+    <p><b>2:50–2:58.</b> "Who pays? The agency owner. ACE is customer zero, and every Google Ads agency serving e-commerce has the same unbilled onboarding hours. Our pricing hypothesis is five hundred dollars a month per agency; twelve senior hours at a hundred dollars is twelve hundred saved per onboarding, so five a year pay for it. The wedge is intake plus break-even, which sells alone; the SDLC makes it recurring."</p>
     <p>Say "hypothesis" out loud for the price and the hours. Demand evidence today is one customer, ACE; the honest next step is five agency owners and a paid pilot. Competition (not researched): forms and sheets (nobody chases), access-request tools (access only), client portals (client still types, cloud), ChatGPT with pasted notes (no provenance, no gates).</p>
   </aside>
 </section>

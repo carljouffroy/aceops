@@ -7,13 +7,14 @@ uv run python -m sdlc --source sample    # Northline sample answers (data/sample
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import threading
 import time
 
 import uvicorn
 
-from sdlc import engine
+from sdlc import engine, pipeline
 from sdlc.api import Console, create_app
 from sdlc.config import LocalOnlyError, console_port, load_dotenv, mcp_port, model_settings
 from sdlc.mcp_server import build_server
@@ -26,9 +27,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sdlc", description="ACE Ops SDLC agent and console")
     parser.add_argument("--source", choices=("live", "sample"), default="live")
     parser.add_argument("--no-mcp", action="store_true", help="Don't start the agent MCP server")
+    parser.add_argument("--autopilot", action="store_true", help="Start with the stage agents acting on the gates")
     args = parser.parse_args(argv)
 
     load_dotenv()
+    if args.autopilot:
+        os.environ["SDLC_AUTOPILOT"] = "1"
     try:
         settings = model_settings()
     except LocalOnlyError as exc:
@@ -36,15 +40,23 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     ensure_sample()
     console = Console(args.source)
+    if args.autopilot:
+        ws = console.workspace()
+        with ws.lock:
+            state = ws.load()
+            if not state.get("autopilot"):
+                state["autopilot"] = True
+                ws.save(state)
     print(f"sdlc: model {'rules only' if settings is None else settings.model + ' at ' + settings.base_url}", flush=True)
     print(f"sdlc: console http://127.0.0.1:{console_port()}  source {args.source}", flush=True)
+    print(f"sdlc: autopilot {'on' if console.workspace().load().get('autopilot') else 'off'}  agent isolation {pipeline.isolation_mode()}", flush=True)
 
     def loop() -> None:
         while True:
             try:
-                engine.sync(console.workspace())
+                pipeline.tick(console.workspace())  # syncs, then lets the stage agents act if autopilot is on
             except Exception as exc:  # keep the always-on loop alive; the next tick retries
-                print(f"sdlc: sync failed: {exc}", file=sys.stderr, flush=True)
+                print(f"sdlc: tick failed: {exc}", file=sys.stderr, flush=True)
             time.sleep(SYNC_EVERY_S)
 
     threading.Thread(target=loop, name="sdlc-loop", daemon=True).start()

@@ -102,7 +102,7 @@ def _merge_specs(state: dict, fresh: list[dict]) -> None:
             reason = (old.get("rejection") or {}).get("reason", "")
             by = (old.get("rejection") or {}).get("by", "")
             history = [*_keep_history(old, new), f"v{old['version']} rejected by {by}: {reason}"]
-            specs[new["id"]] = {**new, "version": old["version"] + 1, "risks": history}
+            specs[new["id"]] = {**new, "version": old["version"] + 1, "risks": history, "rejection": old.get("rejection")}
             emit(state, AGENT, "spec_revised", new["id"], f"Re-drafted {new['id']} as v{old['version'] + 1} after rejection: {reason}")
         elif old["status"] == "approved":
             answered = {i["source_item_id"] for i in old.get("inputs_needed_from_client", [])} - {
@@ -150,7 +150,16 @@ def _refresh_tickets(state: dict, work: list[dict], deps: dict, bundle: dict) ->
         if row and t["stage"] != "done" and row.get("client_answer") != t.get("client_answer"):
             for field in ("client_answer", "answered_by", "client_ai_name", "ts", "history"):
                 t[field] = row.get(field) if field != "history" else list(row.get("history") or [])
-            emit(state, AGENT, "answer_changed", t["id"], f"Client changed their answer to {t['source_item_id']}; {t['id']} now uses the new text.")
+            if t["stage"] == "review":
+                t["acceptance_criteria"] = [{**c, "result": None, "note": None} for c in t["acceptance_criteria"]]
+                emit(state, AGENT, "answer_changed", t["id"], f"Client changed their answer to {t['source_item_id']}; re-checking {t['id']} against the new text.")
+            elif t["stage"] == "release":
+                t["stage"] = "review"
+                t["review"] = None
+                t["acceptance_criteria"] = [{**c, "result": None, "note": None} for c in t["acceptance_criteria"]]
+                emit(state, AGENT, "answer_changed", t["id"], f"Client changed their answer to {t['source_item_id']} after review; {t['id']} is back in review.")
+            else:
+                emit(state, AGENT, "answer_changed", t["id"], f"Client changed their answer to {t['source_item_id']}; {t['id']} now uses the new text.")
         derive.resolve_waits(t, state["tickets"], state["specs"], work, deps, bundle)
 
 
@@ -179,9 +188,16 @@ def _rebuild_status(state: dict, client: str, now: str, today: date | None) -> N
     status = agent.build_status(client, slug, state["specs"], state["tickets"], now, today)
     rules_text = status["client_update"]["draft"]
     override = state.get("client_update_override")
+    if isinstance(override, str):  # written before the override carried its rules_text
+        override = {"text": override, "rules_text": rules_text}
     last = state["outbox"][-1] if state.get("outbox") else None
+    if override and override.get("rules_text") != rules_text:
+        # The work moved on since the owner edited the text; a fresh draft replaces it.
+        state.pop("client_update_override", None)
+        emit(state, AGENT, "update_stale", "status", "The work changed; the edited client update was replaced by a fresh draft.")
+        override = None
     if override:
-        status["client_update"]["draft"] = override
+        status["client_update"]["draft"] = override["text"]
     elif last and last.get("rules_text") == rules_text:
         # Nothing changed since the last send: show what was sent, as sent.
         status["client_update"]["draft"] = last["text"]
