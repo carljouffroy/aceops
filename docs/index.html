@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ACE Ops</title>
+<meta name="description" content="ACE Ops: the always-on, local-first delivery agent for agencies. Your client's AI answers the brief, our agent drafts the work, people approve it. Runs on a Dell Pro Max GB10, no cloud calls.">
+<meta property="og:title" content="ACE Ops · the always-on delivery agent for agencies">
+<meta property="og:description" content="Your client's AI answers the brief. Our agent drafts the work. People approve it. Nothing leaves the box.">
+<meta property="og:image" content="assets/social-preview.png">
+<style>
+  :root { color-scheme: dark; --bg:#120c08; --panel:#1f1610; --panel-2:#281d15; --line:rgba(243,217,164,.10); --line-strong:rgba(243,217,164,.2); --ink:#f6efe4; --ink-2:#e4d8c6; --muted:#b5a186; --faint:#8c7961; --gold:#e8c290; --gold-2:#f3d9a4; --copper:#c9955a; --ok:#8fd6a8; --bad:#f0a497;
+    --sans:"Work Sans","Helvetica Neue",Inter,-apple-system,"Segoe UI",Arial,sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+    --dawn:linear-gradient(180deg,#f5e7cf 0%,#ead1ab 14%,#d8ac77 30%,#b77d49 46%,#6e4224 56%,#3b2416 68%,#1d130c 84%,#120c08 100%); }
+  * { box-sizing:border-box; } html,body { margin:0; }
+  body { background:var(--bg); color:var(--ink); font:16px/1.55 var(--sans); -webkit-font-smoothing:antialiased; }
+  a { color:var(--gold); text-decoration:none; } a:hover { text-decoration:underline; }
+  .hero { position:relative; min-height:72vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:64px 24px 48px; background:var(--dawn); background-size:100% 160%; background-position:50% 36%; overflow:hidden; isolation:isolate; }
+  .hero::before { content:""; position:absolute; inset:0; z-index:-1; background:radial-gradient(55% 60% at 76% 36%, rgba(255,246,227,.8), rgba(243,214,166,.3) 45%, transparent 100%), radial-gradient(60% 60% at 14% 78%, rgba(42,23,11,.7), transparent 100%); }
+  .hero::after { content:""; position:absolute; left:0; right:0; top:56%; height:2px; background:linear-gradient(90deg, transparent, rgba(255,242,220,.8) 40%, rgba(255,242,220,.95) 62%, transparent); box-shadow:0 0 24px rgba(255,242,220,.6); }
+  .wordmark { font-size:clamp(56px, 11vw, 150px); font-weight:500; letter-spacing:.3em; text-indent:.3em; color:#fff; line-height:1; text-shadow:0 0 44px rgba(255,236,200,.7), 0 2px 30px rgba(60,30,10,.35); }
+  .sub { margin-top:26px; font-size:clamp(14px, 2vw, 22px); letter-spacing:.38em; text-indent:.38em; text-transform:uppercase; color:#fff4e4; }
+  .tag { margin-top:14px; font-size:clamp(14px, 1.6vw, 19px); color:#f3dfc2; max-width:820px; }
+  .cta { margin-top:34px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:999px; border:1px solid rgba(255,240,214,.35); background:rgba(18,12,8,.55); color:#fff6e6; font-weight:500; backdrop-filter:blur(8px); }
+  .btn.gold { background:linear-gradient(135deg, var(--gold-2), var(--copper)); color:#2a1b0c; border-color:transparent; font-weight:600; }
+  .btn:hover { text-decoration:none; filter:brightness(1.06); }
+  .corner { position:absolute; bottom:22px; font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:#e8d5b8; opacity:.85; }
+  .corner.l { left:28px; } .corner.r { right:28px; }
+  main { max-width:1100px; margin:0 auto; padding:56px 24px 90px; }
+  h2 { font-size:clamp(26px, 3.6vw, 40px); font-weight:500; letter-spacing:-.01em; margin:0 0 14px; color:#fff6e6; }
+  h2 em { font-style:normal; color:var(--gold-2); }
+  .eyebrow { font-size:12px; letter-spacing:.3em; text-transform:uppercase; color:var(--gold); font-weight:600; margin:0 0 12px; }
+  section { margin-top:72px; }
+  p.lead { font-size:19px; color:var(--ink-2); max-width:820px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-top:26px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  .card h3 { margin:0 0 8px; font-size:18px; font-weight:560; color:#fff6e6; }
+  .card p { margin:0; color:var(--muted); font-size:15px; }
+  .num { font-size:12px; letter-spacing:.2em; color:var(--gold); font-weight:700; margin-bottom:8px; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:22px; }
+  .flow span { padding:8px 14px; border:1px solid var(--line-strong); border-radius:999px; font-size:14px; }
+  .flow span.g { border-color:var(--gold); color:var(--gold-2); }
+  .flow i { color:var(--copper); font-style:normal; }
+  table { border-collapse:collapse; width:100%; margin-top:22px; font-size:15px; }
+  th { text-align:left; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); padding:8px; border-bottom:1px solid var(--line-strong); }
+  td { padding:11px 8px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--ink-2); }
+  td b { color:#fff6e6; font-weight:560; } td code { font-family:var(--mono); font-size:13px; color:var(--gold); }
+  .red { color:var(--bad); font-weight:700; } .ok { color:var(--ok); }
+  img.diagram { width:100%; border-radius:14px; border:1px solid var(--line); margin-top:22px; }
+  pre { background:#0d0906; border:1px solid var(--line); border-radius:12px; padding:16px 18px; overflow:auto; font:14px/1.5 var(--mono); color:var(--ink-2); }
+  footer { border-top:1px solid var(--line); padding:28px 24px; text-align:center; color:var(--faint); font-size:13px; letter-spacing:.08em; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wordmark">ACE OPS</div>
+  <div class="sub">The always-on delivery agent for agencies</div>
+  <div class="tag">Your client's AI answers the brief. Our agent drafts the work. People approve it. Nothing of the agency's leaves the box.</div>
+  <div class="cta">
+    <a class="btn gold" href="pitch/deck.html">Watch the pitch deck</a>
+    <a class="btn" href="https://github.com/carljouffroy/aceops">Source on GitHub</a>
+    <a class="btn" href="https://github.com/carljouffroy/aceops#sixty-second-demo">60-second demo</a>
+  </div>
+  <span class="corner l">Runs on Dell Pro Max GB10 · all inference local</span>
+  <span class="corner r">Dell × NVIDIA AI Hackathon · San Francisco · 25 Oct 2026</span>
+</header>
+
+<main>
+  <section>
+    <p class="eyebrow">The problem</p>
+    <h2>New clients cost an agency <em>weeks</em> before the first euro is spent.</h2>
+    <p class="lead">A 30-question checklist half answered, account access that never arrives, a brief written from memory, work that starts on revenue numbers instead of profit. The people who could fix it are the agency's most expensive hours.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">How it works</p>
+    <h2>Eight stages. Five human gates. <em>The agent does the paperwork.</em></h2>
+    <div class="flow"><span>Intake</span><i>→</i><span>BRD</span><i>→</i><span class="g">Spec · G1</span><i>→</i><span class="g">Tickets · G2</span><i>→</i><span>Build</span><i>→</i><span class="g">Review · G3</span><i>→</i><span class="g">Release · G4</span><i>→</i><span class="g">Status · G5</span></div>
+    <div class="grid">
+      <div class="card"><div class="num">01</div><h3>Your client's AI talks to our agent</h3><p>One MCP URL, one scoped token. Their assistant answers 32 onboarding questions one per turn; every answer is stored append-only with provenance. Client text is data, never an instruction.</p></div>
+      <div class="card"><div class="num">02</div><h3>From answers to assigned work</h3><p>A BRD by section, one work item per answer, one spec per section, tickets in dependency order, and a working draft built from the client's own figures.</p></div>
+      <div class="card"><div class="num">03</div><h3>The agent cannot approve its own work</h3><p>Its tool list has no approve, accept, review, release or send. A builder who tries to review their own ticket gets a <span class="red">409</span>. A number that traces to no client answer fails the pre-check.</p></div>
+      <div class="card"><div class="num">04</div><h3>Local-first by construction</h3><p>Every server binds 127.0.0.1, the console loads nothing from the network, and the SDLC service refuses to start if the model URL isn't loopback. Rules first, so it runs with the model down.</p></div>
+      <div class="card"><div class="num">05</div><h3>Data room</h3><p>Drop a client's sales export and the Analyst agent answers "which products sell more on promotion, and which promotions lose money", from the file, by region and customer segment, as a spec with tickets.</p></div>
+      <div class="card"><div class="num">06</div><h3>Autopilot, when the owner delegates</h3><p>Seven stage agents, each in its own process with nothing but its stage's files, take a spec to released work. The Dev agent never reviews what it built; every run is signed.</p></div>
+    </div>
+    <img class="diagram" src="assets/architecture.svg" alt="Architecture: everything runs on one GB10 over loopback">
+  </section>
+
+  <section>
+    <p class="eyebrow">The money moment</p>
+    <h2>Seasonal decor needs 3.4× to break even. <em>The agent puts that next to every draft.</em></h2>
+    <table>
+      <thead><tr><th>Category</th><th>Margin (client)</th><th>Margin-only floor (derived)</th><th>Client break-even</th></tr></thead>
+      <tbody>
+        <tr><td><b>Tableware</b></td><td>58 %</td><td><code>≈1.72×</code></td><td>2.1×</td></tr>
+        <tr><td><b>Textiles</b></td><td>46 %</td><td><code>≈2.17×</code></td><td>2.6×</td></tr>
+        <tr><td><b>Lighting</b></td><td>41 %</td><td><code>≈2.44×</code></td><td>2.9×</td></tr>
+        <tr><td><b>Seasonal decor</b></td><td>33 %</td><td><code>≈3.03×</code></td><td>3.4×</td></tr>
+      </tbody>
+    </table>
+    <p class="lead" style="margin-top:14px">Floors are derived by the agent from the client's own answers and marked ≈. A draft that ignores them does not pass review.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Run it</p>
+    <h2>Three commands, no model required.</h2>
+<pre>git clone https://github.com/carljouffroy/aceops && cd aceops
+uv sync
+make sdlc-sample        # console on http://127.0.0.1:8792 · agent MCP on :8791</pre>
+    <p class="lead">78 tests, CI on every push. Full details, the GB10 runbook and the agent tool list are in the <a href="https://github.com/carljouffroy/aceops#readme">README</a>.</p>
+  </section>
+</main>
+<footer>ACE OPS · Carl Jouffroy · Tyler Fabela · Jasmine T · Moorthy · built in one day at the Dell × NVIDIA AI Hackathon</footer>
+</body>
+</html>
