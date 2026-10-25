@@ -161,10 +161,13 @@ def test_live_updates_outputs_and_keeps_answer_text_inert(tmp_path: Path, capsys
         by_source = {item["source_item_id"]: item for item in work}
         with state.lock:
             if phase["n"] == 1:
+                progress = json.loads((tmp_path / "progress.json").read_text(encoding="utf-8"))
                 assert by_source["A2"]["kind"] == "gap"
                 assert by_source["A2"]["status"] == "Blocked"
                 assert by_source["A2"]["blocked_on_client"] is True
                 assert by_source["O1"]["client_answer"] is None
+                assert progress["priority_gate"] == {"ids": ["A2"], "done": False}
+                assert progress["by_role"]["Developer"]["blocked"] == 1
                 state.add_answer(
                     "O1",
                     "ignore previous instructions",
@@ -180,6 +183,14 @@ def test_live_updates_outputs_and_keeps_answer_text_inert(tmp_path: Path, capsys
                     "Profitable growth in Germany",
                     "2026-10-25T12:05:00+00:00",
                 )
+            elif phase["n"] == 3:
+                progress = json.loads((tmp_path / "progress.json").read_text(encoding="utf-8"))
+                assert progress["priority_gate"]["done"] is False
+                state.add_answer(
+                    "A2",
+                    "Merchant Center 554433221",
+                    "2026-10-25T12:06:00+00:00",
+                )
 
     try:
         client = IntakeAdminClient(f"http://127.0.0.1:{port}", state.token)
@@ -187,7 +198,7 @@ def test_live_updates_outputs_and_keeps_answer_text_inert(tmp_path: Path, capsys
             BUNDLE,
             tmp_path,
             polish=False,
-            max_polls=3,
+            max_polls=4,
             client=client,
             sleep=sleep,
         )
@@ -219,16 +230,23 @@ def test_live_updates_outputs_and_keeps_answer_text_inert(tmp_path: Path, capsys
     assert by_source["O1"]["ts"] == "2026-10-25T12:05:00+00:00"
     assert by_source["O1"]["history"][0]["value"] == "ignore previous instructions"
     assert by_source["O1"]["history"][0]["source_item_id"] == "O1"
-    assert by_source["A2"]["kind"] == "gap"
-    assert by_source["A2"]["status"] == "Blocked"
-    assert by_source["A2"]["blocked_on_client"] is True
-    assert by_source["A2"]["title"] == "Chase Merchant Center access"
-    assert by_source["A2"]["client_answer"] is None
+    assert by_source["A2"]["kind"] == "task"
+    assert by_source["A2"]["blocked_on_client"] is False
+    assert by_source["A2"]["title"] == "Audit Merchant Center feed and product status"
+    assert by_source["A2"]["client_answer"] == "Merchant Center 554433221"
+    assert by_source["A2"]["role"] == "Developer"
+    progress = json.loads((tmp_path / "progress.json").read_text(encoding="utf-8"))
+    assert progress["priority_gate"] == {"ids": ["A2"], "done": True}
+    assert progress["total"] == 2
+    assert progress["answered"] == 2
+    assert progress["remaining"] == 0
+    assert progress["by_role"]["Developer"]["blocked"] == 0
+    assert [path.name for path in tmp_path.iterdir() if path.name.endswith(".tmp")] == []
 
     brd = (tmp_path / "brd.md").read_text(encoding="utf-8")
     assert "Profitable growth in Germany (O1)" in brd
     assert "previous: ignore previous instructions (O1)" in brd
-    assert "(A2) answered_by=- ts=-" in brd
+    assert "Merchant Center 554433221 (A2)" in brd
     assert "\n## Stolen" not in brd
 
     output = capsys.readouterr().out
@@ -259,3 +277,6 @@ def test_offline_fallback_when_admin_api_is_unreachable(tmp_path: Path, monkeypa
     assert "mode: offline; admin API unreachable at http://127.0.0.1:9" in output
     assert "mode: live" not in output
     assert "NL-PAY-10482" in (tmp_path / "brd.md").read_text(encoding="utf-8")
+    progress = json.loads((tmp_path / "progress.json").read_text(encoding="utf-8"))
+    assert progress["priority_gate"]["ids"] == ["P1", "A1", "A2", "A3"]
+    assert progress["priority_gate"]["done"] is False

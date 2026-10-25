@@ -13,6 +13,7 @@ from internal.brd import render_brd
 from internal.dispatch import build_work_items
 from internal.intake_client import IntakeAdminClient, IntakeAdminError
 from internal.llm import polish_brd
+from internal.progress import build_progress
 
 ROOT = Path(__file__).resolve().parents[2]
 POLL_SECONDS = 3
@@ -85,9 +86,12 @@ def run_offline(bundle: dict, answers_path: Path, out: Path, *, polish: bool) ->
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"internal.run: {exc}", file=sys.stderr)
         return 1
-    brd_path, work_path = write_outputs(bundle, answers, out, polish=polish)
+    brd_path, work_path, progress_path = write_outputs(
+        bundle, answers, out, polish=polish
+    )
     print(f"brd.md: {brd_path}")
     print(f"work_items.json: {work_path}")
+    print(f"progress.json: {progress_path}")
     return 0
 
 
@@ -145,20 +149,34 @@ def ensure_client(client: IntakeAdminClient, out: Path) -> str:
     return created["id"]
 
 
-def write_outputs(bundle: dict, answers_payload, out: Path, *, polish: bool) -> tuple[Path, Path]:
+def write_outputs(
+    bundle: dict, answers_payload, out: Path, *, polish: bool
+) -> tuple[Path, Path, Path]:
     draft = render_brd(bundle, answers_payload)
     source_ids = [str(item["id"]) for item in bundle["items"]]
     brd = draft if not polish else polish_brd(draft, source_ids)
     work = build_work_items(bundle, answers_payload)
+    progress = build_progress(bundle, answers_payload)
     out.mkdir(parents=True, exist_ok=True)
     brd_path = out / "brd.md"
     work_path = out / "work_items.json"
-    brd_path.write_text(brd, encoding="utf-8")
-    work_path.write_text(
+    progress_path = out / "progress.json"
+    _atomic_write(brd_path, brd)
+    _atomic_write(
+        work_path,
         json.dumps(work, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
     )
-    return brd_path, work_path
+    _atomic_write(
+        progress_path,
+        json.dumps(progress, indent=2, ensure_ascii=False) + "\n",
+    )
+    return brd_path, work_path, progress_path
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.write_text(text, encoding="utf-8")
+    temporary.replace(path)
 
 
 def seen_answers(seen: dict[str, tuple]) -> list[dict]:
