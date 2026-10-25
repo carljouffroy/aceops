@@ -292,6 +292,21 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .agentcard .reads .mono { color: var(--gold); }
 .agentcard .last { color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 6px; }
 
+/* guided tour */
+.tour { position: fixed; right: 20px; bottom: 56px; width: min(420px, calc(100vw - 32px)); z-index: 45; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 16px; padding: 16px 18px 14px; box-shadow: var(--shadow-lg); animation: rise .3s ease both; }
+.tour[hidden] { display: none; }
+.tour .tour-head { display: flex; justify-content: space-between; align-items: center; }
+.tour .tour-n { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+.tour .x { border: 0; background: transparent; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+.tour .x:hover { background: var(--panel-3); color: var(--ink); }
+.tour h4 { margin: 8px 0 6px; font-size: 16px; font-weight: 600; color: #fff6e6; }
+.tour p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+.tour .tour-who { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); margin-bottom: 10px; flex-wrap: wrap; }
+.tour .tour-who b { color: var(--gold-2); }
+.tour .tour-skip { cursor: pointer; margin-left: auto; text-decoration: underline dotted; }
+.tour-target { outline: 3px solid var(--gold-2) !important; outline-offset: 4px; box-shadow: 0 0 0 8px rgba(243, 217, 164, .18), 0 0 30px rgba(243, 217, 164, .5) !important; animation: beacon 1.4s ease-in-out infinite; position: relative; z-index: 30; }
+@keyframes beacon { 0%, 100% { box-shadow: 0 0 0 6px rgba(243, 217, 164, .14), 0 0 24px rgba(243, 217, 164, .4); } 50% { box-shadow: 0 0 0 12px rgba(243, 217, 164, .05), 0 0 40px rgba(243, 217, 164, .7); } }
+
 /* data room */
 table.rec { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 table.rec th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .14em; color: var(--faint); font-weight: 600; padding: 4px 8px 8px; border-bottom: 1px solid var(--line); }
