@@ -53,16 +53,24 @@ Open the console at `http://127.0.0.1:8792` with the Northline sample (see [Quic
 | # | As | Click | What the agent does next |
 |---|---|---|---|
 | 1 | Avery Park, project owner | **Approve** on *SPEC-003 Profit model and constraints* (G1) | Splits it into five tickets, in dependency order |
-| 2 | Jordan Lee, Data Analyst | Open *Build margin by product* → **Accept** (G2) | Moves it to build and writes a working draft from the client's answer |
-| 3 | Jordan Lee | **Edit draft**, add a number the client never gave, **Save**, **Submit for review** | Pre-checks the criteria and flags the untraced number |
+| 2 | Jordan Lee, Data Analyst | Open *Build margin by product* → **Accept as Jordan Lee** (G2) | Moves it to build and writes a working draft from the client's answer |
+| 3 | Jordan Lee | **Edit draft**, add a number the client never gave, **Save draft**, **Submit for review** | Pre-checks the criteria and flags the untraced number |
 | 4 | Jordan Lee | **Approve** | Refused: *the reviewer must differ from the builder* |
 | 5 | Morgan Diaz, Data Analyst | **Approve** | Refused while a check is failing; **Request changes** sends it back |
-| 6 | Jordan Lee | Fix the draft (prefix the number with `≈`), **Submit** | Pre-check passes |
+| 6 | Jordan Lee | Fix the draft (prefix the number with `≈`), **Submit for review** | Pre-check passes |
 | 7 | Morgan Diaz | **Approve** (G3) | Ticket waits for release; dependent tickets unblock |
 | 8 | Avery Park | *Releases* → **Release…**, record the client's sign-off (G4) | Writes release notes and the client summary |
-| 9 | Avery Park | *Client update* → **Approve & send** (G5) | Sends the update with six follow-up questions for the client's AI |
+| 9 | Avery Park | *Client update* → **Approve & send** (G5) | Approves the update into the outbox with six follow-up questions for the client's AI (the hand-off into intake is next on the list) |
 
 Every button in the console is wired to a gate with a server-side check; nothing is mocked.
+
+### Autopilot: delegating the gates to six isolated agents
+
+Switch **Autopilot** on (project owner only) and the gates are worked by six stage agents instead of people: **Spec**, **Dev**, **Test**, **Debug**, **Deploy** and **Status**. Each run is a separate process whose context is built only from the files its stage declares (`reads` in [`src/sdlc/agents/stages.py`](src/sdlc/agents/stages.py)); no agent sees another's memory, prompt or history. The Dev agent builds, the Test agent reviews, the Debug agent fixes what the Test agent rejected (up to three rounds, then it hands the ticket to a person), the Deploy agent releases, the Status agent sends the update. The invariants hold either way: **no agent reviews its own work** (the `409` fires for agents too), every run is logged with the agent's name, inputs and outcome under *Activity*, the agent-facing MCP server still has no gate tool, and only a human owner can switch autopilot on or off. Default is off.
+
+```bash
+make sdlc-sample SDLC_AUTOPILOT=1    # or press Autopilot in the console
+```
 
 ## How it works
 
@@ -72,7 +80,7 @@ Every button in the console is wired to a gate with a server-side check; nothing
 |---|---|---|---|
 | Intake | client's AI | asks the next item, records the answer with provenance | — |
 | BRD | internal agent | groups answers by section, lists open gaps, dispatches work items | — |
-| Spec | SDLC agent | one spec per section: goal, scope, acceptance criteria, inputs still needed, dependencies, risks | **G1** project owner approves or rejects with a reason (the agent re-drafts as v2) |
+| Spec | SDLC agent | one spec per BRD section that has at least one answered item: goal, scope, acceptance criteria, inputs still needed, dependencies, risks | **G1** project owner approves or rejects with a reason (the agent re-drafts as v2) |
 | Tickets | SDLC agent | one ticket per answered item; `depends_on` from a reviewed dependency map; `blocked_on_client` when a prerequisite is still a gap | **G2** someone in the role accepts |
 | Build | SDLC agent | writes the working draft: ranked margins, break-even floors, data-flow map, access log, figures table | — (evidence required to leave) |
 | Review | SDLC agent | pre-checks each criterion; the traceability check fails any number that isn't in a client answer or marked `≈` | **G3** a peer in the same role, never the builder |
@@ -89,8 +97,8 @@ Design rules the code enforces:
 
 | Claim | How it's enforced | How to show a judge |
 |---|---|---|
-| No remote LLM calls | `sdlc.config.model_settings()` refuses any model URL whose host isn't `127.0.0.1`, `::1` or `localhost`; the service won't start | point `INTERNAL_LLM_BASE_URL` at a cloud host and watch it refuse |
-| No data leaves the box | every server binds `127.0.0.1`; the console's CSP is `default-src 'none'; connect-src 'self'`; no external fonts, scripts or images anywhere | DevTools → Network while clicking through the demo |
+| No remote LLM calls from the SDLC service | `sdlc.config.model_settings()` refuses any model URL whose host isn't `127.0.0.1`, `::1` or `localhost`; the service won't start (the intake and internal agents read the same `.env`, which is documented as loopback-only) | point `INTERNAL_LLM_BASE_URL` at a cloud host and watch it refuse |
+| No data leaves the box | every server binds `127.0.0.1`; the console answers only to loopback `Host` headers (`421` otherwise), is served with `X-Frame-Options: DENY` and a `Content-Security-Policy` header of `default-src 'none'; connect-src 'self'; frame-ancestors 'none'`; no external fonts, scripts or images anywhere | DevTools → Network and Response headers while clicking through the demo |
 | Model is on the GPU | OpenAI-compatible local server (Ollama / vLLM / NIM) on the GB10 | `nvidia-smi` during a run; `ss -tnp` shows only loopback |
 | Works offline | rules-first generation; `DEMO_MODE=scripted` and the sample source need no model at all | pull the network cable |
 | Sandboxed agent | OpenClaw runs in an OpenShell sandbox via NemoClaw with loopback-only egress ([runbook](docs/sdlc/gb10-runbook.md)) | one blocked outbound request in the sandbox log |
@@ -102,10 +110,9 @@ Requirements: Python 3.12, [uv](https://docs.astral.sh/uv/). No GPU is needed fo
 ```bash
 git clone https://github.com/carljouffroy/aceops && cd aceops
 uv sync
-cp .env.example .env            # set ADMIN_TOKEN to a long random string
 ```
 
-Run the delivery console on the built-in Northline sample (no model, no intake needed):
+Run the delivery console on the built-in Northline sample (no model, no intake, no `.env` needed):
 
 ```bash
 make sdlc-sample                # = PYTHONPATH=src uv run python -m sdlc --source sample
@@ -113,7 +120,7 @@ make sdlc-sample                # = PYTHONPATH=src uv run python -m sdlc --sourc
 # agent    http://127.0.0.1:8791/mcp
 ```
 
-Run the whole pipeline (intake MCP server, work board, live BRD loop, a scripted client) and then the console on the live output:
+Run the whole pipeline (intake MCP server, work board, live BRD loop, a scripted client) and then the console on the live output. This needs a `.env` (`cp .env.example .env`, set `ADMIN_TOKEN`), free ports 8787, 8788 and 8790, and Linux or macOS. The scripted client answers every item with a placeholder, so the drafts are thin; the Northline sample above is the one with real figures.
 
 ```bash
 DEMO_MODE=scripted make demo    # intake :8787/:8788, board :8790
@@ -134,8 +141,7 @@ Then drop `DEMO_MODE=scripted`. The GB10 setup, NemoClaw / OpenShell onboarding 
 Tests:
 
 ```bash
-uv run pytest -q            # intake, internal, board
-uv run pytest src/sdlc -q   # SDLC contracts, flow, gates, API
+uv run pytest -q tests src/sdlc   # everything: intake, internal, board, SDLC contracts, flow, gates, API, autopilot
 ```
 
 ## Agent tools
@@ -154,8 +160,9 @@ The SDLC MCP server (`127.0.0.1:8791/mcp`, Streamable HTTP) is what an agent suc
 | `precheck(ticket_id)` | per-criterion `met` / `not_met` / `needs_human` with reasons | — (advice; a reviewer decides) |
 | `draft_release(spec_id)` | release notes and client summary | no reviewed tickets |
 | `build_status` | the status rollup and draft client update | — |
+| `list_agents` | the six stage agents, what each may read, their last runs, whether autopilot is on | — |
 
-There is no tool that approves, accepts, reviews, releases or sends. That is the point.
+There is no tool that approves, accepts, reviews, releases, sends or switches autopilot. That is the point.
 
 ## Data contracts
 
@@ -193,7 +200,7 @@ scripts/run_demo.sh one-command pipeline demo
 - **Stack declared:** Python 3.12, FastAPI, the official MCP Python SDK, SQLite, a local OpenAI-compatible model server on the GB10, and NVIDIA OpenShell via NemoClaw for the agent sandbox. We declare only what we run; see the runbook for the exact runtime on the box.
 - **Team:** Carl Jouffroy, Tyler Fabela, Jasmine T, Moorthy (ACE).
 - **Demo data:** the client, people and figures are fictional. The repository holds the generic checklist only; no client checklist or document is committed.
-- **Deck:** [`docs/pitch/deck.html`](docs/pitch/deck.html) (open locally, arrow keys to navigate) · [`docs/pitch/storyboard.md`](docs/pitch/storyboard.md) · [`docs/pitch/office-hours.md`](docs/pitch/office-hours.md).
+- **Deck:** [`docs/pitch/deck.html`](docs/pitch/deck.html) (download and open in a browser; arrow keys, `N` for notes) · [`docs/pitch/deck.pptx`](docs/pitch/deck.pptx) · [`docs/pitch/storyboard.md`](docs/pitch/storyboard.md) · [`docs/pitch/office-hours.md`](docs/pitch/office-hours.md).
 
 ## What's next
 
