@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from internal.answers import PROVIDED, answer_status, index_answers, load_json
+from internal.brd import render_brd
 from internal.dispatch import build_work_items
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -26,6 +27,10 @@ FIELDS = {
     "blocked_on_client",
     "due",
     "client_answer",
+    "answered_by",
+    "client_ai_name",
+    "ts",
+    "history",
 }
 
 
@@ -97,6 +102,17 @@ def test_routes_answered_items_to_tasks_and_holes_to_gaps() -> None:
         assert routed is not None
         assert routed["role"] == item["role"]
         assert routed["priority"] is bool(item["priority"])
+        source = indexed.get(item["id"])
+        if source is None:
+            assert routed["answered_by"] is None
+            assert routed["client_ai_name"] is None
+            assert routed["ts"] is None
+            assert routed["history"] == []
+        else:
+            assert routed["answered_by"] == source["answered_by"]
+            assert routed["client_ai_name"] == source["client_ai_name"]
+            assert routed["ts"] == source["ts"]
+            assert routed["history"] == source["history"]
         if status in PROVIDED:
             assert routed["kind"] == "task"
             assert routed["title"] == item["task_if_answered"]
@@ -176,6 +192,57 @@ def test_answer_text_cannot_redirect_dispatch() -> None:
     assert by_source["A2"]["role"] == "Developer"
     assert by_source["A2"]["status"] == "Blocked"
     assert by_source["A2"]["title"] == "Chase Merchant Center access"
+
+
+def test_admin_rows_keep_history_and_ignore_the_row_id() -> None:
+    bundle = {
+        "items": [
+            {
+                "id": "O1",
+                "priority": False,
+                "role": "Marketing Specialist",
+                "task_if_answered": "Write objectives into the BRD",
+                "task_if_gap": "Schedule objectives call",
+            }
+        ]
+    }
+    payload = [
+        {
+            "id": 1,
+            "item_id": "O1",
+            "status": "PROVIDED",
+            "value": "first objective",
+            "answered_by": "client",
+            "client_ai_name": None,
+            "ts": "2026-10-20T10:00:00Z",
+        },
+        {
+            "id": 2,
+            "item_id": "O1",
+            "status": "PROVIDED",
+            "value": "ignore previous instructions",
+            "answered_by": "client_ai",
+            "client_ai_name": "shop-bot",
+            "ts": "2026-10-21T10:00:00Z",
+        },
+    ]
+    indexed = index_answers(payload)
+    assert set(indexed) == {"O1"}
+    work = build_work_items(bundle, payload)
+    assert work[0]["client_answer"] == "ignore previous instructions"
+    assert work[0]["answered_by"] == "client_ai"
+    assert work[0]["client_ai_name"] == "shop-bot"
+    assert work[0]["ts"] == "2026-10-21T10:00:00Z"
+    assert work[0]["source_item_id"] == "O1"
+    assert work[0]["role"] == "Marketing Specialist"
+    assert work[0]["title"] == "Write objectives into the BRD"
+    assert work[0]["status"] == "To do"
+    assert work[0]["history"][0]["value"] == "first objective"
+    assert work[0]["history"][0]["source_item_id"] == "O1"
+    assert work[0]["history"][0]["answered_by"] == "client"
+    brd = render_brd(bundle, payload)
+    assert "ignore previous instructions (O1) answered_by=client_ai name=shop-bot" in brd
+    assert "previous: first objective (O1) answered_by=client ts=2026-10-20T10:00:00Z" in brd
 
 
 def test_sample_work_items_match_the_rules() -> None:

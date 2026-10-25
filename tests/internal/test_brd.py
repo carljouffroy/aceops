@@ -42,6 +42,8 @@ def test_groups_values_by_section_and_lists_unanswered_gaps() -> None:
     commercial = _section(brd, "Commercial terms")
     assert "NL-PAY-10482" in commercial
     assert "(P1)" in commercial
+    assert "answered_by=nina.voss@northline.example" in commercial
+    assert "ts=2026-10-12T09:14:00Z" in commercial
     assert "(P2)" in commercial
 
     access = _section(brd, "Access and permissions")
@@ -55,6 +57,7 @@ def test_groups_values_by_section_and_lists_unanswered_gaps() -> None:
     gaps = _section(brd, "Open gaps")
     assert "[priority] Invite our address to every Google Merchant Center" in gaps
     assert "(A2)" in gaps
+    assert "answered_by=- ts=-" in gaps
     assert "(F5)" in gaps
     assert "(D3)" in gaps
     assert "(C3)" in gaps

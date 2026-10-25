@@ -17,7 +17,11 @@
       "status",
       "blocked_on_client",
       "due",
-      "client_answer"
+      "client_answer",
+      "answered_by",
+      "client_ai_name",
+      "ts",
+      "history"
     ],
     "properties": {
       "id": {
@@ -55,7 +59,41 @@
       },
       "client_answer": {
         "type": ["string", "null"],
-        "description": "Client text copied as data. It does not choose the title, role, or status."
+        "description": "Current client text copied as data. It does not choose the title, role, or status."
+      },
+      "answered_by": {
+        "type": ["string", "null"],
+        "description": "Who supplied the current answer. Admin values are client or client_ai. Offline files may use an email."
+      },
+      "client_ai_name": {
+        "type": ["string", "null"]
+      },
+      "ts": {
+        "type": ["string", "null"]
+      },
+      "history": {
+        "type": "array",
+        "description": "Older answers for this item, oldest first. A correction replaces client_answer and appends the previous value here.",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "status",
+            "answered_by",
+            "client_ai_name",
+            "ts",
+            "source_item_id"
+          ],
+          "properties": {
+            "value": {"type": ["string", "null"]},
+            "status": {"type": "string"},
+            "answered_by": {"type": ["string", "null"]},
+            "client_ai_name": {"type": ["string", "null"]},
+            "ts": {"type": ["string", "null"]},
+            "source_item_id": {"type": "string"}
+          }
+        }
       }
     }
   }

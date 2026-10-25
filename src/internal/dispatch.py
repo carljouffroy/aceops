@@ -43,6 +43,30 @@ def build_work_items(bundle: dict, answers_payload: Any) -> list[dict]:
                 "blocked_on_client": blocked,
                 "due": None,
                 "client_answer": answer_value(answer),
+                "answered_by": answer.get("answered_by") if answer else None,
+                "client_ai_name": answer.get("client_ai_name") if answer else None,
+                "ts": answer.get("ts") if answer else None,
+                "history": _history(answer, item["id"]),
             }
         )
     return work
+
+
+def _history(answer: dict | None, item_id: str) -> list[dict]:
+    if not answer:
+        return []
+    rows = []
+    for old in answer.get("history") or []:
+        if not isinstance(old, dict):
+            continue
+        rows.append(
+            {
+                "value": old.get("value"),
+                "status": old.get("status") or "",
+                "answered_by": old.get("answered_by"),
+                "client_ai_name": old.get("client_ai_name"),
+                "ts": old.get("ts"),
+                "source_item_id": item_id,
+            }
+        )
+    return rows

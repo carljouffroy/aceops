@@ -26,7 +26,7 @@ def render_brd(bundle: dict, answers_payload: Any) -> str:
         if answer is None or status == "":
             label = _one_line(item.get("text") or "")
             prefix = "[priority] " if item.get("priority") else ""
-            gaps.append(f"- {prefix}{label} ({item_id})")
+            gaps.append(f"- {prefix}{label} {_provenance(None, item_id)}")
             continue
         value = _one_line(answer_value(answer) or "")
         if status == "N/A":
@@ -35,9 +35,9 @@ def render_brd(bundle: dict, answers_payload: Any) -> str:
             shown = value
         else:
             shown = value or status
-        lines_by_section.setdefault(str(item.get("section", "")), []).append(
-            f"- {shown} ({item_id})"
-        )
+        block = [f"- {shown} {_provenance(answer, item_id)}"]
+        block.extend(_history_lines(answer, item_id))
+        lines_by_section.setdefault(str(item.get("section", "")), []).extend(block)
 
     parts = ["# Business requirements", ""]
     name = client_name(answers_payload)
@@ -60,6 +60,32 @@ def render_brd(bundle: dict, answers_payload: Any) -> str:
 
 def _section(title: str, lines: list[str]) -> list[str]:
     return [f"## {title}", "", *lines, ""]
+
+
+def _provenance(answer: dict | None, item_id: str) -> str:
+    who = _who(answer)
+    stamp = _one_line(answer.get("ts")) if answer and answer.get("ts") else "-"
+    return f"({item_id}) answered_by={who} ts={stamp}"
+
+
+def _history_lines(answer: dict, item_id: str) -> list[str]:
+    lines = []
+    for old in answer.get("history") or []:
+        if not isinstance(old, dict):
+            continue
+        value = _one_line(old.get("value") or "")
+        lines.append(f"  - previous: {value} {_provenance(old, item_id)}")
+    return lines
+
+
+def _who(answer: dict | None) -> str:
+    if not answer:
+        return "-"
+    who = _one_line(answer.get("answered_by") or "")
+    name = _one_line(answer.get("client_ai_name") or "")
+    if who and name:
+        return f"{who} name={name}"
+    return who or name or "-"
 
 
 def _one_line(value: object) -> str:

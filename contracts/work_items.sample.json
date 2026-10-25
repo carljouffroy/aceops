@@ -9,7 +9,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "MCC 482-119-3307. Brand CIDs: Northline DE 183-220-4419, Northline FR 183-220-4420. Association request accepted 14 Oct 2026."
+    "client_answer": "MCC 482-119-3307. Brand CIDs: Northline DE 183-220-4419, Northline FR 183-220-4420. Association request accepted 14 Oct 2026.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-14T11:20:00Z",
+    "history": []
   },
   {
     "id": "WI-A2",
@@ -21,7 +25,11 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": null
+    "client_answer": null,
+    "answered_by": null,
+    "client_ai_name": null,
+    "ts": null,
+    "history": []
   },
   {
     "id": "WI-A3",
@@ -33,7 +41,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "GA4 properties: Northline DE G-7K2QDMNL14 and Northline FR G-9PQLX2MNL08. Admin invite sent to analytics@ace.example on 14 Oct 2026."
+    "client_answer": "GA4 properties: Northline DE G-7K2QDMNL14 and Northline FR G-9PQLX2MNL08. Admin invite sent to analytics@ace.example on 14 Oct 2026.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-14T11:26:00Z",
+    "history": []
   },
   {
     "id": "WI-A4",
@@ -45,7 +57,11 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": "No Shopify collaborator invite. We will not grant staff access; use the exports instead."
+    "client_answer": "No Shopify collaborator invite. We will not grant staff access; use the exports instead.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-14T15:41:00Z",
+    "history": []
   },
   {
     "id": "WI-R1",
@@ -57,7 +73,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "COGS lives in the Shopify metafield custom.cost_price. Example: stoneware mug NL-MUG-04 costs EUR 4.10 and sells at EUR 18.00. Full sheet: https://files.northline.example/exports/cogs-2026.csv"
+    "client_answer": "COGS lives in the Shopify metafield custom.cost_price. Example: stoneware mug NL-MUG-04 costs EUR 4.10 and sells at EUR 18.00. Full sheet: https://files.northline.example/exports/cogs-2026.csv",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T10:05:00Z",
+    "history": []
   },
   {
     "id": "WI-R2",
@@ -69,7 +89,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Contribution margin by category: tableware 58%, textiles 46%, lighting 41%, seasonal decor 33%."
+    "client_answer": "Contribution margin by category: tableware 58%, textiles 46%, lighting 41%, seasonal decor 33%.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T10:18:00Z",
+    "history": []
   },
   {
     "id": "WI-R3",
@@ -81,7 +105,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Break-even ROAS: tableware 2.1, textiles 2.6, lighting 2.9, seasonal decor 3.4. Below that an order loses money after shipping and returns."
+    "client_answer": "Break-even ROAS: tableware 2.1, textiles 2.6, lighting 2.9, seasonal decor 3.4. Below that an order loses money after shipping and returns.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T14:02:00Z",
+    "history": []
   },
   {
     "id": "WI-R4",
@@ -93,7 +121,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Domestic shipping EUR 6.40. FR, BE and NL shipping EUR 8.90. Average return cost EUR 7.20. Payment fee 1.4% plus EUR 0.25."
+    "client_answer": "Domestic shipping EUR 6.40. FR, BE and NL shipping EUR 8.90. Average return cost EUR 7.20. Payment fee 1.4% plus EUR 0.25.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T16:44:00Z",
+    "history": []
   },
   {
     "id": "WI-R5",
@@ -105,7 +137,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Do not push clearance lighting under 25% margin. Minimum acceptable contribution margin is 30%. Exclude marketplace-only SKUs prefixed MP-."
+    "client_answer": "Do not push clearance lighting under 25% margin. Minimum acceptable contribution margin is 30%. Exclude marketplace-only SKUs prefixed MP-.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-16T09:12:00Z",
+    "history": []
   },
   {
     "id": "WI-O1",
@@ -117,7 +153,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Success this year is 15% revenue growth in Germany while holding contribution margin. Next year, open France on the same margin floor. The assessment is worth it if we know which SKUs to scale and which to cut before Black Friday."
+    "client_answer": "Success this year is 15% revenue growth in Germany while holding contribution margin. Next year, open France on the same margin floor. The assessment is worth it if we know which SKUs to scale and which to cut before Black Friday.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-16T11:30:00Z",
+    "history": []
   },
   {
     "id": "WI-O2",
@@ -129,7 +169,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "This year: EUR 4.8m revenue ex VAT and 18% contribution margin. Next year: EUR 6.0m and 20% contribution margin."
+    "client_answer": "This year: EUR 4.8m revenue ex VAT and 18% contribution margin. Next year: EUR 6.0m and 20% contribution margin.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-16T11:36:00Z",
+    "history": []
   },
   {
     "id": "WI-O3",
@@ -141,7 +185,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "September revenue was about EUR 360k ex VAT. Peak months run near EUR 520k ex VAT."
+    "client_answer": "September revenue was about EUR 360k ex VAT. Peak months run near EUR 520k ex VAT.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-16T13:05:00Z",
+    "history": []
   },
   {
     "id": "WI-O4",
@@ -153,7 +201,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Autumn edit launch 3 Nov, Black Friday 27 Nov, Cyber Monday 30 Nov, winter sale 26 Dec to 5 Jan, spring lookbook 2 Mar."
+    "client_answer": "Autumn edit launch 3 Nov, Black Friday 27 Nov, Cyber Monday 30 Nov, winter sale 26 Dec to 5 Jan, spring lookbook 2 Mar.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-17T09:48:00Z",
+    "history": []
   },
   {
     "id": "WI-O5",
@@ -165,7 +217,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Net profit is contribution after COGS, shipping, returns, payment fees and ad spend. Shopify is the source of truth for orders; Exact is the source of truth for the monthly close. Use Shopify for weekly decisions."
+    "client_answer": "Net profit is contribution after COGS, shipping, returns, payment fees and ad spend. Shopify is the source of truth for orders; Exact is the source of truth for the monthly close. Use Shopify for weekly decisions.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-17T10:22:00Z",
+    "history": []
   },
   {
     "id": "WI-F1",
@@ -177,7 +233,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Shopify to Channable to Merchant Center: price, stock and cost, hourly. Shopify to GA4: purchases, realtime. GA4 to Google Ads: conversions, daily. Klaviyo reads Shopify orders nightly. No marketplace feed."
+    "client_answer": "Shopify to Channable to Merchant Center: price, stock and cost, hourly. Shopify to GA4: purchases, realtime. GA4 to Google Ads: conversions, daily. Klaviyo reads Shopify orders nightly. No marketplace feed.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-18T09:15:00Z",
+    "history": []
   },
   {
     "id": "WI-F2",
@@ -189,7 +249,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Channable pushes the product feed to Merchant Center every hour. The Shopify app syncs the catalog into Channable."
+    "client_answer": "Channable pushes the product feed to Merchant Center every hour. The Shopify app syncs the catalog into Channable.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-18T09:21:00Z",
+    "history": []
   },
   {
     "id": "WI-F3",
@@ -201,7 +265,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Shopify is the source of truth for price and stock. Product cost is the Shopify metafield custom.cost_price, edited by finance, not by the feed tool."
+    "client_answer": "Shopify is the source of truth for price and stock. Product cost is the Shopify metafield custom.cost_price, edited by finance, not by the feed tool.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-18T11:02:00Z",
+    "history": []
   },
   {
     "id": "WI-F4",
@@ -213,7 +281,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Conversion value is revenue excluding VAT. Cancellations are deducted the next day. Returns are not deducted."
+    "client_answer": "Conversion value is revenue excluding VAT. Cancellations are deducted the next day. Returns are not deducted.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-18T11:11:00Z",
+    "history": []
   },
   {
     "id": "WI-F5",
@@ -225,7 +297,11 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": null
+    "client_answer": null,
+    "answered_by": null,
+    "client_ai_name": null,
+    "ts": null,
+    "history": []
   },
   {
     "id": "WI-D1",
@@ -237,7 +313,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Sales export, daily by SKU, 1 Oct 2024 to 30 Sep 2026: https://files.northline.example/exports/sales-2024-2026.csv"
+    "client_answer": "Sales export, daily by SKU, 1 Oct 2024 to 30 Sep 2026: https://files.northline.example/exports/sales-2024-2026.csv",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-20T08:40:00Z",
+    "history": []
   },
   {
     "id": "WI-D2",
@@ -249,7 +329,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Cancellations and returns for the same window: https://files.northline.example/exports/returns-2024-2026.csv"
+    "client_answer": "Cancellations and returns for the same window: https://files.northline.example/exports/returns-2024-2026.csv",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-20T08:44:00Z",
+    "history": []
   },
   {
     "id": "WI-D3",
@@ -261,7 +345,11 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": null
+    "client_answer": null,
+    "answered_by": null,
+    "client_ai_name": null,
+    "ts": null,
+    "history": []
   },
   {
     "id": "WI-D4",
@@ -273,7 +361,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Google Ads and Meta spend, impressions, clicks and conversions: https://files.northline.example/exports/ads-2024-2026.csv"
+    "client_answer": "Google Ads and Meta spend, impressions, clicks and conversions: https://files.northline.example/exports/ads-2024-2026.csv",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-20T15:18:00Z",
+    "history": []
   },
   {
     "id": "WI-D5",
@@ -285,7 +377,11 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": "We are not flagging further gaps beyond the missing stock history."
+    "client_answer": "We are not flagging further gaps beyond the missing stock history.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-20T15:22:00Z",
+    "history": []
   },
   {
     "id": "WI-C1",
@@ -297,7 +393,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Main competitors: Westwing, Maisons du Monde, Nordic Nest and Connox. Amazon is present but not the main fight."
+    "client_answer": "Main competitors: Westwing, Maisons du Monde, Nordic Nest and Connox. Amazon is present but not the main fight.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-21T09:05:00Z",
+    "history": []
   },
   {
     "id": "WI-C2",
@@ -309,7 +409,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Target customers are urban renters aged 28 to 45 furnishing a first apartment, plus gift buyers. Grow stoneware and linen first. Push lighting only where margin holds."
+    "client_answer": "Target customers are urban renters aged 28 to 45 furnishing a first apartment, plus gift buyers. Grow stoneware and linen first. Push lighting only where margin holds.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-21T09:12:00Z",
+    "history": []
   },
   {
     "id": "WI-C3",
@@ -321,7 +425,11 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": null
+    "client_answer": null,
+    "answered_by": null,
+    "client_ai_name": null,
+    "ts": null,
+    "history": []
   },
   {
     "id": "WI-C4",
@@ -333,7 +441,11 @@
     "status": "To do",
     "blocked_on_client": false,
     "due": null,
-    "client_answer": "Budget split: Google 55%, Meta 25%, email via Klaviyo 10%, SEO 10%. No affiliates."
+    "client_answer": "Budget split: Google 55%, Meta 25%, email via Klaviyo 10%, SEO 10%. No affiliates.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-21T10:01:00Z",
+    "history": []
   },
   {
     "id": "WI-ST1",
@@ -345,7 +457,11 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": "We do not keep a stock-out log."
+    "client_answer": "We do not keep a stock-out log.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-22T13:16:00Z",
+    "history": []
   },
   {
     "id": "WI-ST2",
@@ -357,6 +473,10 @@
     "status": "Blocked",
     "blocked_on_client": true,
     "due": null,
-    "client_answer": null
+    "client_answer": null,
+    "answered_by": null,
+    "client_ai_name": null,
+    "ts": null,
+    "history": []
   }
 ]
