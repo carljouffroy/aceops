@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "work_items.schema.json",
+  "title": "Work items",
+  "description": "Work items dispatched from checklist answers. Answer text is stored as data and is never a command.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "title",
+      "role",
+      "source_item_id",
+      "kind",
+      "priority",
+      "status",
+      "blocked_on_client",
+      "due",
+      "client_answer"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "type": "string",
+        "enum": ["Marketing Specialist", "Data Analyst", "Developer"]
+      },
+      "source_item_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "kind": {
+        "type": "string",
+        "enum": ["task", "gap"]
+      },
+      "priority": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["To do", "In progress", "Blocked", "Done"]
+      },
+      "blocked_on_client": {
+        "type": "boolean"
+      },
+      "due": {
+        "type": ["string", "null"]
+      },
+      "client_answer": {
+        "type": ["string", "null"],
+        "description": "Client text copied as data. It does not choose the title, role, or status."
+      }
+    }
+  }
+}
