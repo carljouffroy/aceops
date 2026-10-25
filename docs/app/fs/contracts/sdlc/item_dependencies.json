@@ -1,0 +1,15 @@
+{
+  "description": "DRAFT for review by Carl. Which checklist items' work must be done before another item's work can start. Keys and values are bundle.json item ids. If a prerequisite is a task, the ticket gets depends_on on that ticket. If it is a gap, the ticket is blocked_on_client and the gap is listed in the spec's inputs_needed_from_client.",
+  "version": 1,
+  "depends_on": {
+    "R2": ["R1"],
+    "R3": ["R1", "R4"],
+    "R4": ["R1"],
+    "R5": ["R2"],
+    "F2": ["A2"],
+    "F4": ["A3"],
+    "D4": ["R1"],
+    "C3": ["D1", "D2"],
+    "ST1": ["D3"]
+  }
+}
