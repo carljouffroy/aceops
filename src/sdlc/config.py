@@ -33,7 +33,15 @@ DEFAULT_TEAM = (
     {"name": "Drew Kim", "role": "Developer"},
 )
 
+# Identities the autopilot pipeline acts under. They are not people and never appear in "Acting as".
+AGENT_NAMES = ("Spec agent", "Dev agent", "Test agent", "Debug agent", "Deploy agent", "Status agent")
+
 LOOPBACK_NAMES = {"localhost"}
+
+
+def autopilot_default() -> bool:
+    """SDLC_AUTOPILOT=1 starts new workspaces with the agents in charge of the gates."""
+    return os.environ.get("SDLC_AUTOPILOT", "0").strip().lower() in ("1", "true", "on", "yes")
 
 
 class LocalOnlyError(ValueError):

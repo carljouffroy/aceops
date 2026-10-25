@@ -7,6 +7,8 @@ demo-stop:
 	bash scripts/run_demo.sh stop
 
 # SDLC agent + delivery console (:8792) + agent MCP server (:8791)
+# make sdlc-sample SDLC_AUTOPILOT=1 starts with the stage agents working the gates.
+export SDLC_AUTOPILOT SDLC_ISOLATION
 sdlc:
 	PYTHONPATH=src uv run python -m sdlc
 
