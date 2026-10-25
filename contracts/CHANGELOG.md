@@ -10,3 +10,11 @@
 - `answered_by` is `client` or `client_ai`. A display name is a separate field, `client_ai_name`, not an email. The timestamp is already named `ts` on the admin payload.
 
 No intake server code was changed.
+
+## 2026-10-25 — progress.json
+
+`internal.run` also writes `progress.json` next to `brd.md` and `work_items.json`. The shape is `contracts/progress.schema.json`.
+
+- `priority_gate.ids` lists checklist items with `priority: true`, in bundle order. `priority_gate.done` is true only when each of those items is DONE or PROVIDED. N/A and a missing answer leave the gate closed.
+- `by_role.<role>.open` counts that role's work items whose status is not Done. `by_role.<role>.blocked` counts the ones with `blocked_on_client` true.
+- Each output file is replaced atomically: the new text is written to a temporary file in the same directory, then renamed.
