@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SDLC spec",
+  "description": "One deliverable, drafted by the SDLC agent from BRD sections and dispatched work items, approved by the project owner (gate G1). data/out/sdlc/specs.json is a JSON array of these. DRAFT 2026-10-25.",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "client",
+    "title",
+    "role",
+    "stage",
+    "status",
+    "goal",
+    "scope",
+    "acceptance_criteria",
+    "source_item_ids",
+    "source_work_item_ids",
+    "depends_on",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^SPEC-[0-9]{3}$", "description": "Unique per client, e.g. SPEC-001." },
+    "version": { "type": "integer", "minimum": 1, "description": "Approved specs are frozen; a change makes version + 1." },
+    "client": { "type": "string", "minLength": 1, "description": "Client slug as used by intake. Fictional in the repo (northline-goods)." },
+    "title": { "type": "string", "minLength": 1 },
+    "role": { "$ref": "#/$defs/role", "description": "Lead role for the deliverable." },
+    "stage": { "const": "spec" },
+    "status": { "enum": ["draft", "in_review", "approved", "rejected", "superseded"] },
+    "brd_sections": {
+      "type": "array",
+      "items": { "enum": ["P", "A", "R", "O", "F", "D", "C", "ST"] },
+      "uniqueItems": true,
+      "description": "BRD sections this spec draws on."
+    },
+    "goal": { "type": "string", "minLength": 1 },
+    "scope": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "out_of_scope": { "type": "array", "items": { "type": "string" } },
+    "acceptance_criteria": { "type": "array", "items": { "$ref": "#/$defs/acceptance_criterion" }, "minItems": 1 },
+    "inputs_needed_from_client": {
+      "type": "array",
+      "description": "Open gaps this spec depends on. Status turns these into follow-up questions (after gate G5).",
+      "items": {
+        "type": "object",
+        "required": ["source_item_id", "question"],
+        "additionalProperties": false,
+        "properties": {
+          "source_item_id": { "type": "string", "description": "bundle.json item id of the gap." },
+          "question": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "source_item_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "bundle.json item ids this spec traces back to." },
+    "source_work_item_ids": { "type": "array", "items": { "type": "string" }, "description": "work_items.json ids grouped into this spec." },
+    "depends_on": { "type": "array", "items": { "type": "string", "pattern": "^SPEC-[0-9]{3}$" }, "uniqueItems": true },
+    "risks": { "type": "array", "items": { "type": "string" } },
+    "client_signoff_required": { "type": "boolean", "description": "True when the work touches the client's ad account, feed or store; gate G4 then needs the client's sign-off." },
+    "analysis": { "type": "object", "description": "Present on specs drafted from a client dataset: dataset name, rows, the recommendations and every figure they use." },
+    "approval": { "oneOf": [{ "$ref": "#/$defs/approval" }, { "type": "null" }], "description": "Gate G1. Set only through the admin API, never by the agent." },
+    "rejection": {
+      "oneOf": [
+        { "type": "object", "required": ["by", "at", "reason"], "additionalProperties": false, "properties": { "by": { "type": "string" }, "at": { "type": "string", "format": "date-time" }, "reason": { "type": "string" } } },
+        { "type": "null" }
+      ]
+    },
+    "provenance": { "$ref": "#/$defs/provenance" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "approved" } }, "required": ["status"] },
+      "then": { "required": ["approval"], "properties": { "approval": { "$ref": "#/$defs/approval" } } }
+    }
+  ],
+  "$defs": {
+    "role": { "enum": ["Marketing Specialist", "Data Analyst", "Developer"] },
+    "acceptance_criterion": {
+      "type": "object",
+      "required": ["id", "text", "verified_by"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC[0-9]+$" },
+        "text": { "type": "string", "minLength": 1 },
+        "verified_by": { "enum": ["agent_check", "human_review", "client_confirmation"] }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "required": ["by", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "by": { "type": "string", "minLength": 1, "description": "A person. Never the agent." },
+        "at": { "type": "string", "format": "date-time" },
+        "note": { "type": ["string", "null"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["generated_by", "generated_at"],
+      "additionalProperties": false,
+      "properties": {
+        "generated_by": { "enum": ["rules", "local_llm", "human"] },
+        "model": { "type": ["string", "null"], "description": "Local model name when generated_by is local_llm." },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "inputs": { "type": "array", "items": { "type": "string" }, "description": "Files read, e.g. data/out/brd.md." }
+      }
+    }
+  }
+}

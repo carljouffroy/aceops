@@ -1,0 +1,245 @@
+[
+  {
+    "id": "SPEC-003-T01",
+    "title": "Build margin by product",
+    "role": "Data Analyst",
+    "source_item_id": "R1",
+    "kind": "task",
+    "priority": false,
+    "blocked_on_client": false,
+    "due": null,
+    "client_answer": "COGS lives in the Shopify metafield custom.cost_price. Example: stoneware mug NL-MUG-04 costs EUR 4.10 and sells at EUR 18.00. Full sheet: https://files.northline.example/exports/cogs-2026.csv",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T10:05:00Z",
+    "history": [],
+    "status": "In progress",
+    "spec_id": "SPEC-003",
+    "spec_version": 1,
+    "source_work_item_id": "WI-R1",
+    "stage": "release",
+    "assignee": "Jordan Lee",
+    "acceptance_criteria": [
+      {
+        "id": "AC1",
+        "text": "Every product in the sales export has a cost from the COGS source, or is listed as missing.",
+        "verified_by": "agent_check",
+        "result": "met"
+      }
+    ],
+    "depends_on": [],
+    "evidence": [
+      {
+        "kind": "file",
+        "ref": "data/out/sdlc/drafts/SPEC-003-T01.md",
+        "added_by": "Jordan Lee",
+        "at": "2026-10-25T14:10:00-07:00"
+      }
+    ],
+    "agent_draft": "data/out/sdlc/drafts/SPEC-003-T01.md",
+    "review": {
+      "reviewer": "Morgan Diaz",
+      "decision": "approved",
+      "notes": "Checked against the sales export.",
+      "at": "2026-10-25T14:20:00-07:00"
+    },
+    "release": null,
+    "provenance": {
+      "generated_by": "rules",
+      "model": null,
+      "generated_at": "2026-10-25T13:56:00-07:00",
+      "inputs": [
+        "data/out/sdlc/specs.json",
+        "contracts/sdlc/item_dependencies.json"
+      ]
+    }
+  },
+  {
+    "id": "SPEC-003-T02",
+    "title": "Rank categories by margin",
+    "role": "Data Analyst",
+    "source_item_id": "R2",
+    "kind": "task",
+    "priority": false,
+    "blocked_on_client": false,
+    "due": null,
+    "client_answer": "Contribution margin by category: tableware 58%, textiles 46%, lighting 41%, seasonal decor 33%.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T10:18:00Z",
+    "history": [],
+    "status": "In progress",
+    "spec_id": "SPEC-003",
+    "spec_version": 1,
+    "source_work_item_id": "WI-R2",
+    "stage": "build",
+    "assignee": "Jordan Lee",
+    "acceptance_criteria": [
+      {
+        "id": "AC1",
+        "text": "Every product in the sales export has a cost from the COGS source, or is listed as missing.",
+        "verified_by": "agent_check",
+        "result": null
+      }
+    ],
+    "depends_on": [
+      "SPEC-003-T01"
+    ],
+    "evidence": [],
+    "agent_draft": "data/out/sdlc/drafts/SPEC-003-T02.md",
+    "review": null,
+    "release": null,
+    "provenance": {
+      "generated_by": "rules",
+      "model": null,
+      "generated_at": "2026-10-25T13:56:00-07:00",
+      "inputs": [
+        "data/out/sdlc/specs.json",
+        "contracts/sdlc/item_dependencies.json"
+      ]
+    }
+  },
+  {
+    "id": "SPEC-003-T03",
+    "title": "Compare ROAS targets to break-even",
+    "role": "Marketing Specialist",
+    "source_item_id": "R3",
+    "kind": "task",
+    "priority": false,
+    "blocked_on_client": false,
+    "due": null,
+    "client_answer": "Break-even ROAS: tableware 2.1, textiles 2.6, lighting 2.9, seasonal decor 3.4. Below that an order loses money after shipping and returns.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T14:02:00Z",
+    "history": [],
+    "status": "To do",
+    "spec_id": "SPEC-003",
+    "spec_version": 1,
+    "source_work_item_id": "WI-R3",
+    "stage": "tickets",
+    "assignee": null,
+    "acceptance_criteria": [
+      {
+        "id": "AC2",
+        "text": "Break-even ROAS per category matches the client's stated values within 0.1, or the difference is explained.",
+        "verified_by": "human_review",
+        "result": null
+      }
+    ],
+    "depends_on": [
+      "SPEC-003-T01",
+      "SPEC-003-T04"
+    ],
+    "evidence": [],
+    "agent_draft": null,
+    "review": null,
+    "release": null,
+    "provenance": {
+      "generated_by": "rules",
+      "model": null,
+      "generated_at": "2026-10-25T13:56:00-07:00",
+      "inputs": [
+        "data/out/sdlc/specs.json",
+        "contracts/sdlc/item_dependencies.json"
+      ]
+    }
+  },
+  {
+    "id": "SPEC-003-T04",
+    "title": "Add order costs to the profit model",
+    "role": "Data Analyst",
+    "source_item_id": "R4",
+    "kind": "task",
+    "priority": false,
+    "blocked_on_client": false,
+    "due": null,
+    "client_answer": "Domestic shipping EUR 6.40. FR, BE and NL shipping EUR 8.90. Average return cost EUR 7.20. Payment fee 1.4% plus EUR 0.25.",
+    "answered_by": "jonas.keller@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-15T16:44:00Z",
+    "history": [],
+    "status": "In progress",
+    "spec_id": "SPEC-003",
+    "spec_version": 1,
+    "source_work_item_id": "WI-R4",
+    "stage": "review",
+    "assignee": "Morgan Diaz",
+    "acceptance_criteria": [
+      {
+        "id": "AC3",
+        "text": "Order costs (shipping, returns, payment fees) are applied per order as the client described.",
+        "verified_by": "human_review",
+        "result": "needs_human"
+      }
+    ],
+    "depends_on": [
+      "SPEC-003-T01"
+    ],
+    "evidence": [
+      {
+        "kind": "file",
+        "ref": "data/out/sdlc/drafts/SPEC-003-T04.md",
+        "added_by": "Morgan Diaz",
+        "at": "2026-10-25T14:10:00-07:00"
+      }
+    ],
+    "agent_draft": "data/out/sdlc/drafts/SPEC-003-T04.md",
+    "review": null,
+    "release": null,
+    "provenance": {
+      "generated_by": "rules",
+      "model": null,
+      "generated_at": "2026-10-25T13:56:00-07:00",
+      "inputs": [
+        "data/out/sdlc/specs.json",
+        "contracts/sdlc/item_dependencies.json"
+      ]
+    }
+  },
+  {
+    "id": "SPEC-003-T05",
+    "title": "Add exclusions to campaign structure",
+    "role": "Marketing Specialist",
+    "source_item_id": "R5",
+    "kind": "task",
+    "priority": false,
+    "blocked_on_client": false,
+    "due": null,
+    "client_answer": "Do not push clearance lighting under 25% margin. Minimum acceptable contribution margin is 30%. Exclude marketplace-only SKUs prefixed MP-.",
+    "answered_by": "nina.voss@northline.example",
+    "client_ai_name": null,
+    "ts": "2026-10-16T09:12:00Z",
+    "history": [],
+    "status": "To do",
+    "spec_id": "SPEC-003",
+    "spec_version": 1,
+    "source_work_item_id": "WI-R5",
+    "stage": "tickets",
+    "assignee": null,
+    "acceptance_criteria": [
+      {
+        "id": "AC4",
+        "text": "No recommendation pushes a product or category the client excluded.",
+        "verified_by": "agent_check",
+        "result": null
+      }
+    ],
+    "depends_on": [
+      "SPEC-003-T02"
+    ],
+    "evidence": [],
+    "agent_draft": null,
+    "review": null,
+    "release": null,
+    "provenance": {
+      "generated_by": "rules",
+      "model": null,
+      "generated_at": "2026-10-25T13:56:00-07:00",
+      "inputs": [
+        "data/out/sdlc/specs.json",
+        "contracts/sdlc/item_dependencies.json"
+      ]
+    }
+  }
+]
