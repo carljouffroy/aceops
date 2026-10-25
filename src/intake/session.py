@@ -52,9 +52,12 @@ def submit_answer(
     value: str,
     reason_if_na: str | None = None,
     client_ai_name: str | None = None,
+    answered_by: str = "client_ai",
 ) -> dict[str, Any]:
     if status not in STATUSES:
         raise IntakeError("status must be DONE, PROVIDED, or N/A.")
+    if answered_by not in ("client", "client_ai"):
+        raise IntakeError("answered_by must be client or client_ai.")
     if not isinstance(value, str):
         raise IntakeError("value must be text.")
     if bundle.by_id(item_id) is None:
@@ -76,8 +79,8 @@ def submit_answer(
         status,
         value,
         reason,
-        answered_by="client_ai",
+        answered_by=answered_by,
         client_ai_name=client_ai_name,
         source="mcp",
     )
-    return {"ok": True, "item_id": item_id, "status": status, "answered_by": "client_ai"}
+    return {"ok": True, "item_id": item_id, "status": status, "answered_by": answered_by}

@@ -16,6 +16,19 @@ from mcp.client.streamable_http import streamable_http_client
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from intake.config import load_dotenv  # noqa: E402
 
+SCRIPTED_VALUE = "recorded for hackathon"
+
+
+def scripted_submission(item_id: str) -> dict[str, str]:
+    """Fixed answer used when no model is available."""
+    return {
+        "item_id": item_id,
+        "status": "PROVIDED",
+        "value": SCRIPTED_VALUE,
+        "answered_by": "client_ai",
+        "client_ai_name": "Northline Goods",
+    }
+
 
 async def run(admin_url: str, mcp_url: str, admin_token: str) -> None:
     async with httpx.AsyncClient(timeout=30.0) as http:
@@ -45,14 +58,7 @@ async def run(admin_url: str, mcp_url: str, admin_token: str) -> None:
                     return
                 item_id = payload["id"]
                 print(f"{item_id} {payload.get('progress')}")
-                saved = await client.call_tool(
-                    "submit_answer",
-                    {
-                        "item_id": item_id,
-                        "status": "PROVIDED",
-                        "value": "recorded for hackathon",
-                    },
-                )
+                saved = await client.call_tool("submit_answer", scripted_submission(item_id))
                 if saved.is_error:
                     raise SystemExit(_text(saved))
 
