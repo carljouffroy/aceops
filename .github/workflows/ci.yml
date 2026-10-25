@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+    branches: [main, integration, "feat/**"]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install
+        run: uv sync --frozen
+      - name: Test (intake, internal, board, SDLC, autopilot)
+        run: uv run pytest -q tests src/sdlc
+      - name: Local-only guard refuses a cloud model URL
+        env:
+          SDLC_LLM_BASE_URL: https://api.openai.com/v1
+          SDLC_LLM_MODEL: not-allowed
+        run: |
+          set +e
+          PYTHONPATH=src uv run python -c "from sdlc.config import model_settings; model_settings()" 2>err.txt
+          code=$?
+          set -e
+          grep -q "not on this machine" err.txt && test "$code" -ne 0 && echo "guard holds"
