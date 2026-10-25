@@ -65,9 +65,15 @@ Open the console at `http://127.0.0.1:8792` with the Northline sample (see [Quic
 
 Every button in the console is wired to a gate with a server-side check; nothing is mocked.
 
-### Autopilot: delegating the gates to six isolated agents
+### Data room: a client's sales export becomes a promotion plan
 
-Switch **Autopilot** on (project owner only) and the gates are worked by six stage agents instead of people: **Spec**, **Dev**, **Test**, **Debug**, **Deploy** and **Status**. Each run is a separate process whose context is built only from the files its stage declares (`reads` in [`src/sdlc/agents/stages.py`](src/sdlc/agents/stages.py)); no agent sees another's memory, prompt or history. The Dev agent builds, the Test agent reviews, the Debug agent fixes what the Test agent rejected (up to three rounds, then it hands the ticket to a person), the Deploy agent releases, the Status agent sends the update. The invariants hold either way: **no agent reviews its own work** (the `409` fires for agents too), every run is logged with the agent's name, inputs and outcome under *Activity*, the agent-facing MCP server still has no gate tool, and only a human owner can switch autopilot on or off. Default is off.
+Drop a client's sales export into `contracts/sdlc/datasets/` (committed, with a licence note) or `data/clients/` (never committed) with a small `profile.json` that maps its columns, and the **Analyst agent** profiles it on the next sync. The *Data room* tab shows, per dataset: units per order with and without a promotion for every product, the lift, how many orders stand behind it, promotion coverage, profit per promoted order, and the breakdown by region and customer segment. Two lists come out: **promote these** (lift ≥ 15 %, coverage under 60 %, promoted orders still profitable) and **stop promoting** (units fall, or the promotion turns the order unprofitable). One click (project owner) drafts a spec from it, and from there it's the same pipeline: approve, one ticket per recommendation on the Marketing Specialist's and Data Analyst's plates, a working draft with the evidence table, the traceability pre-check (every figure must come from the file), review by a different person, release with the client's sign-off, client update.
+
+The sample is the public Superstore dataset from Hugging Face ([1gichukimba/superstores](https://huggingface.co/datasets/1gichukimba/superstores), MIT): 9,994 US order lines with region, customer segment, product, quantity, discount and profit. It stands in for the consultant's question "which of this brand's products would sell more on promotion, and which promotions lose money", answered from the client's own file, on the box, in one sync. Under autopilot the Analyst agent drafts the spec itself.
+
+### Autopilot: delegating the gates to seven isolated agents
+
+Switch **Autopilot** on (project owner only) and the gates are worked by seven stage agents instead of people: **Analyst**, **Spec**, **Dev**, **Test**, **Debug**, **Deploy** and **Status**. Each run is a separate process whose context is built only from the files its stage declares (`reads` in [`src/sdlc/agents/stages.py`](src/sdlc/agents/stages.py)); no agent sees another's memory, prompt or history. The Dev agent builds, the Test agent reviews, the Debug agent fixes what the Test agent rejected (up to three rounds, then it hands the ticket to a person), the Deploy agent releases, the Status agent sends the update. The invariants hold either way: **no agent reviews its own work** (the `409` fires for agents too), every run is logged with the agent's name, inputs and outcome under *Activity*, the agent-facing MCP server still has no gate tool, and only a human owner can switch autopilot on or off. Default is off.
 
 ```bash
 make sdlc-sample SDLC_AUTOPILOT=1    # or press Autopilot in the console
@@ -161,7 +167,9 @@ The SDLC MCP server (`127.0.0.1:8791/mcp`, Streamable HTTP) is what an agent suc
 | `precheck(ticket_id)` | per-criterion `met` / `not_met` / `needs_human` with reasons | — (advice; a reviewer decides) |
 | `draft_release(spec_id)` | release notes and client summary | no reviewed tickets |
 | `build_status` | the status rollup and draft client update | — |
-| `list_agents` | the six stage agents, what each may read, their last runs, whether autopilot is on | — |
+| `list_datasets` | the client exports in the data room with rows, mapped fields and overall lift | — |
+| `analyze_dataset(name)` | promotion effectiveness for one export: promote, stop, by region, by segment, method | unknown dataset |
+| `list_agents` | the seven stage agents, what each may read, their last runs, whether autopilot is on | — |
 
 There is no tool that approves, accepts, reviews, releases, sends or switches autopilot. That is the point.
 

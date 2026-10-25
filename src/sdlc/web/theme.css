@@ -292,6 +292,17 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .agentcard .reads .mono { color: var(--gold); }
 .agentcard .last { color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 6px; }
 
+/* data room */
+table.rec { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+table.rec th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .14em; color: var(--faint); font-weight: 600; padding: 4px 8px 8px; border-bottom: 1px solid var(--line); }
+table.rec td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.rec tr:last-child td { border-bottom: 0; }
+table.rec td b { color: #fff6e6; font-weight: 560; }
+.liftbar { display: inline-block; width: 70px; height: 6px; border-radius: 999px; background: rgba(243, 217, 164, .1); vertical-align: middle; overflow: hidden; }
+.liftbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--copper), var(--ready)); }
+.liftbar.neg i { background: linear-gradient(90deg, #c84a3a, #f0a497); }
+.ok-ink { color: var(--ok); font-weight: 600; } .bad-ink { color: var(--bad); font-weight: 600; }
+
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty h3 { color: #fff6e6; font-size: 18px; margin: 0 0 8px; font-weight: 500; letter-spacing: .02em; }
 

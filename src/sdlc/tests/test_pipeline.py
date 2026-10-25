@@ -136,8 +136,8 @@ def test_process_isolation_runs_each_agent_in_its_own_process(ws):
     engine.sync(ws)
     runs = pipeline.tick(ws, isolation="process", max_runs=1)
     assert runs, "autopilot ran nothing"
-    run = runs[0]
-    assert run["agent"] == "Spec agent" and run["ok"], run
+    run = next(r for r in runs if r["agent"] == "Spec agent")
+    assert run["ok"], run
     assert all(r["pid"] and r["pid"] != os.getpid() for r in runs if r["ok"]), runs
     assert len({r["pid"] for r in runs if r["ok"]}) == len([r for r in runs if r["ok"]]), "each run must be its own process"
     state = engine.sync(ws)
@@ -150,8 +150,9 @@ def test_runs_are_logged_and_shown(ws):
     state = engine.sync(ws)
     assert len(state["runs"]) == len(runs) >= 2
     view = pipeline.agents_view(state)
-    assert [a["key"] for a in view] == ["spec", "dev", "test", "debug", "deploy", "status"]
-    assert view[0]["runs"] == 2 and view[0]["last"]["action"] == "approved"
+    assert [a["key"] for a in view] == ["analyst", "spec", "dev", "test", "debug", "deploy", "status"]
+    spec_view = next(a for a in view if a["key"] == "spec")
+    assert spec_view["runs"] == 2 and spec_view["last"]["action"] == "approved"
     kinds = {e["kind"] for e in state["events"]}
     assert "agent_approved" in kinds
 

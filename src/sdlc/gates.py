@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from sdlc import agent, engine
 from sdlc.config import AGENT_NAMES, DEFAULT_TEAM, OWNER_ROLE
+from sdlc.derive import slug
 from sdlc.store import Workspace, emit, now_iso
 
 EVIDENCE_KINDS = ("link", "file", "pr", "note")
@@ -273,6 +274,26 @@ def send_client_update(ws: Workspace, actor: str) -> dict:
         )
         state.pop("client_update_override", None)
         emit(state, who["name"], "update_sent", "status", f"Sent the client update with {len(status['open_gaps'])} follow-up question(s) (G5).")
+        return _finish(ws, state)
+
+
+def draft_analysis_spec(ws: Workspace, dataset: str, actor: str) -> dict:
+    """Turn a client dataset's promotion analysis into a draft spec (owner, or the Analyst agent under autopilot)."""
+    from sdlc import analysis
+
+    with ws.lock:
+        state = engine.sync(ws)
+        who = _owner(state, actor)
+        path = analysis.dataset_path(dataset)
+        if path is None:
+            raise GateError(404, f"No dataset named {dataset}.")
+        if any(s.get("analysis", {}).get("dataset") == dataset and s["status"] != "rejected" for s in state["specs"]):
+            raise GateError(409, f"A spec already exists for {dataset}.")
+        result = analysis.analyze(path)
+        spec = analysis.build_spec(state, result, slug(ws.client_name()), now_iso())
+        state["specs"].append(spec)
+        state["specs"].sort(key=lambda s: s["id"])
+        emit(state, who["name"], "spec_drafted", spec["id"], f"Drafted {spec['id']} {spec['title']} from {result['rows']:,} order lines: {len(result['promote'])} promotion(s) to run, {len(result['stop'])} to review.")
         return _finish(ws, state)
 
 

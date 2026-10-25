@@ -124,10 +124,19 @@ def _keep_history(old: dict, new: dict) -> list[str]:
 
 
 def _split_approved(state: dict, bundle: dict, work: list[dict], now: str) -> None:
+    from sdlc import analysis  # data-driven specs; imported here to keep engine importable on its own
+
     for spec in state["specs"]:
         if spec["status"] != "approved":
             continue
         have = [t for t in state["tickets"] if t["spec_id"] == spec["id"]]
+        if spec.get("analysis"):
+            if not have:
+                new = analysis.split_spec(spec, now)
+                state["tickets"].extend(new)
+                if new:
+                    emit(state, AGENT, "spec_split", spec["id"], f"Split {spec['id']} into {len(new)} ticket(s) from the client's data: {', '.join(t['id'] for t in new)}.")
+            continue
         if not have:
             new = derive.split_spec(spec, bundle, work, now)
             state["tickets"].extend(new)
@@ -172,7 +181,12 @@ def _advance(ws: Workspace, state: dict, bundle: dict, answers: dict) -> None:
             t["stage"] = "build"
             emit(state, AGENT, "build_started", t["id"], f"{t['id']} is ready; moved to build for {t['assignee']}.")
         if t["stage"] == "build" and not t.get("agent_draft"):
-            text = agent.draft_artifact(t, items.get(t["source_item_id"]), answers, specs.get(t["spec_id"]))
+            if t.get("analysis"):
+                from sdlc import analysis
+
+                text = analysis.draft_ticket(t, specs.get(t["spec_id"]))
+            else:
+                text = agent.draft_artifact(t, items.get(t["source_item_id"]), answers, specs.get(t["spec_id"]))
             t["agent_draft"] = ws.write_draft(t["id"], text)
             emit(state, AGENT, "draft_written", t["id"], f"Wrote a working draft for {t['id']} {t['title']}.")
         if t["stage"] == "review" and any(c.get("result") is None for c in t["acceptance_criteria"]):

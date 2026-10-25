@@ -34,7 +34,7 @@ DEFAULT_TEAM = (
 )
 
 # Identities the autopilot pipeline acts under. They are not people and never appear in "Acting as".
-AGENT_NAMES = ("Spec agent", "Dev agent", "Test agent", "Debug agent", "Deploy agent", "Status agent")
+AGENT_NAMES = ("Analyst agent", "Spec agent", "Dev agent", "Test agent", "Debug agent", "Deploy agent", "Status agent")
 
 LOOPBACK_NAMES = {"localhost"}
 
