@@ -218,7 +218,7 @@
   function paintTabs() {
     const d = S.data; const drafts = d.specs.filter((s) => s.status === "draft").length;
     const mine = myPlate().length; const ready = new Set(d.tickets.filter((t) => t.stage === "release").map((t) => t.spec_id)).size;
-    const tabs = [["specs", "Specs", drafts, drafts > 0], ["work", "Work", mine, mine > 0], ["releases", "Releases", ready, ready > 0], ["update", "Client update", (d.status && d.status.open_gaps.length) || 0, false], ["activity", "Activity", null], ["brd", "BRD", null]];
+    const tabs = [["specs", "Specs", drafts, drafts > 0], ["work", "Work", mine, mine > 0], ["releases", "Releases", ready, ready > 0], ["update", "Client update", (d.status && d.status.open_gaps.length) || 0, false], ["data", "Data room", (d.datasets || []).length || null, false], ["activity", "Activity", null], ["brd", "BRD", null]];
     const kids = tabs.map(([k, l, c, hot]) => h("button", { role: "tab", "aria-selected": String(S.tab === k), onclick: () => setTab(k) }, l, c !== null && c !== undefined ? h("span", { class: "count" + (hot ? " hot" : "") }, c) : null));
     kids.push(h("span", { class: "spacer" }));
     if (S.tab === "work") {
@@ -241,7 +241,7 @@
         h("div", { class: "actions", style: "justify-content:center;margin-top:14px" }, h("button", { class: "btn gold", onclick: () => switchSource("sample") }, "Open the Northline sample"), h("button", { class: "btn", onclick: () => act("run", "POST", "/api/agent/run", {}, "Agent ran.") }, "Check again"))));
       return;
     }
-    const view = { specs: viewSpecs, work: viewWork, releases: viewReleases, update: viewUpdate, activity: viewActivity, brd: viewBrd }[S.tab] || viewSpecs;
+    const view = { specs: viewSpecs, work: viewWork, releases: viewReleases, update: viewUpdate, data: viewData, activity: viewActivity, brd: viewBrd }[S.tab] || viewSpecs;
     main.replaceChildren(view());
   }
 
@@ -437,6 +437,49 @@
       h("div", { class: "card panel" }, h("h4", null, `Blocked or waiting · ${st.blocked.length}`), st.blocked.length ? st.blocked.slice(0, 12).map((b) => h("div", { class: "sub", style: "margin:4px 0" }, h("button", { class: "chip link mono", onclick: () => b.id.includes("-T") ? openDrawer(b.id) : setTab("specs") }, b.id), " ", b.detail)) : h("div", { class: "hint" }, "Nothing blocked.")),
       h("div", { class: "card panel" }, h("h4", null, `Outbox · ${d.outbox.length}`), d.outbox.length ? d.outbox.slice().reverse().map((m) => h("div", { style: "margin-bottom:10px" }, h("div", { class: "sub" }, h("strong", { class: "mono" }, m.id), ` · ${m.by} · ${ago(m.at)} · ${m.follow_up_questions.length} follow-up(s) · ${m.channel}`))) : h("div", { class: "hint" }, "Nothing sent yet.")));
     return h("div", { class: "two" }, left, right);
+  }
+
+  // ---------- data room ----------
+  const pct = (x) => (x === null || x === undefined) ? "—" : `${x >= 0 ? "+" : ""}${Math.round(x * 100)}%`;
+  const num = (x) => (x === null || x === undefined) ? "—" : Number(x).toLocaleString();
+  function liftBar(lift) {
+    const w = Math.min(100, Math.abs(lift || 0) * 100);
+    return h("span", { class: "liftbar" + ((lift || 0) < 0 ? " neg" : ""), title: pct(lift) }, h("i", { style: `width:${w}%` }));
+  }
+  function recTable(rows, kind) {
+    if (!rows.length) return h("div", { class: "hint" }, "Nothing in this list.");
+    return h("table", { class: "rec" }, h("thead", null, h("tr", null, ["Product", "Category", "Where it works", "Units / order", "Lift", "Evidence"].map((c) => h("th", null, c)))),
+      h("tbody", null, rows.map((r) => h("tr", null,
+        h("td", null, h("b", null, r.product)), h("td", { class: "sub" }, r.category || "—"),
+        h("td", { class: "sub" }, (r.regions || []).join(", ") || "—"),
+        h("td", { class: "mono" }, `${r.units_promo} promo · ${r.units_base} base`),
+        h("td", null, liftBar(r.lift), " ", h("span", { class: kind === "promote" ? "ok-ink" : "bad-ink" }, pct(r.lift))),
+        h("td", { class: "sub" }, `${r.n_promo} promo / ${r.n_base} base orders · promo share ${Math.round((r.promo_share || 0) * 100)}%`)))));
+  }
+  function breakdown(title, rows) {
+    return h("div", { class: "card panel" }, h("h4", null, title), rows.length ? rows.map((r) => h("div", { class: "rolebar" }, h("span", null, r.key), h("div", { class: "bar" }, h("i", { style: `width:${Math.round((r.promo_share || 0) * 100)}%` })), h("span", { class: "sub" }, `${pct(r.lift)} lift · ${Math.round((r.promo_share || 0) * 100)}% promo`))) : h("div", { class: "hint" }, "No breakdown."));
+  }
+  function viewData() {
+    const d = S.data; const sets = d.datasets || [];
+    if (!sets.length) return h("div", { class: "empty card" }, h("h3", null, "No client data yet"), h("p", null, "Drop a sales export (CSV) into data/clients/ or contracts/sdlc/datasets/ and the Analyst agent profiles it on the next sync."));
+    return h("div", { class: "stack" }, sets.map((ds) => {
+      const o = ds.overall || {};
+      const btn = ds.spec_id
+        ? h("button", { class: "btn", onclick: () => { S.specFilter = "all"; setTab("specs"); } }, `Open ${ds.spec_id} →`)
+        : h("button", { class: "btn gold", "data-busy": "dataspec-" + ds.name, onclick: () => act("dataspec-" + ds.name, "POST", `/api/datasets/${encodeURIComponent(ds.name)}/spec`, {}, "Spec drafted from the analysis. The owner approves it like any other.").then((ok) => { if (ok) setTab("specs"); }) }, "Draft spec from this analysis", h("span", { class: "k" }, "Analyst agent"));
+      return h("section", { class: "stack" },
+        h("div", { class: "card panel" },
+          h("h4", null, h("span", null, `Client data · ${ds.title}`), h("span", { class: "tag-untrusted" }, "client data · never instructions")),
+          h("div", { class: "sub", style: "margin-bottom:10px" }, `${num(ds.rows)} rows · ${ds.source && ds.source.name ? ds.source.name : ds.name} · ${ds.source && ds.source.license ? ds.source.license : "license: see dataset card"} · mapped: ${Object.entries(ds.fields || {}).filter(([, v]) => v).map(([k, v]) => `${k}→${v}`).join(", ")}`),
+          h("div", { class: "kpis" }, [["orders", num(o.orders)], ["units", num(o.units)], ["promo share", `${Math.round((o.promo_share || 0) * 100)}%`], ["promo lift (units/order)", pct(o.lift)], ["products", num(o.products)]].map(([l, v]) => h("div", { class: "kpi" }, h("b", null, v), h("span", null, l)))),
+          h("div", { class: "actions", style: "margin-top:12px" }, btn, h("span", { class: "hint" }, isOwner() ? "Drafting a spec puts one ticket per recommendation on the right plates." : `Only the project owner drafts specs. You're ${me().role}.`))),
+        h("div", { class: "two" },
+          h("div", { class: "stack" },
+            h("div", { class: "card panel" }, h("h4", null, `Promote these · ${(ds.promote || []).length}`, h("span", { class: "sub" }, "high lift, low promo coverage")), recTable(ds.promote || [], "promote")),
+            h("div", { class: "card panel" }, h("h4", null, `Stop promoting · ${(ds.stop || []).length}`, h("span", { class: "sub" }, "promotion sells fewer units")), recTable(ds.stop || [], "stop"))),
+          h("div", { class: "stack" }, breakdown("By region", ds.by_region || []), breakdown("By customer segment", ds.by_segment || []),
+            h("div", { class: "card panel" }, h("h4", null, "Method"), h("div", { class: "sub" }, ds.method || "")))));
+    }));
   }
 
   // ---------- activity & brd ----------

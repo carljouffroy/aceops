@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from sdlc import engine, gates, pipeline
+from sdlc import analysis, engine, gates, pipeline
 from sdlc.config import AGENT_NAMES, DEFAULT_TEAM, OWNER_ROLE, SOURCES, mcp_port
 from sdlc.store import Workspace
 
@@ -112,6 +112,7 @@ def view(console: Console, state: dict) -> dict:
         "agent_names": list(AGENT_NAMES),
         "agents": pipeline.agents_view(state),
         "runs": state.get("runs", [])[-60:],
+        "datasets": analysis.summaries(state),
         "version": state.get("version", 0),
         "specs": state["specs"],
         "tickets": state["tickets"],
@@ -182,6 +183,10 @@ def create_app(console: Console | None = None) -> FastAPI:
         ws = console.workspace()
         pipeline.tick(ws)
         return view(console, engine.sync(ws))
+
+    @app.post("/api/datasets/{name}/spec")
+    def dataset_spec(name: str, body: Actor) -> dict:
+        return run(gates.draft_analysis_spec, name, body.actor)
 
     @app.post("/api/autopilot")
     def autopilot(body: Autopilot) -> dict:

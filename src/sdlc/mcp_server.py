@@ -122,6 +122,24 @@ def build_server(workspace: Callable[[], Workspace]) -> MCPServer:
         """Status rollup and the draft client update. Sending it needs the project owner."""
         return _state()[1]["status"] or {}
 
+    @mcp.tool(name="list_datasets")
+    def list_datasets() -> list[dict[str, Any]]:
+        """Client sales exports the Analyst agent has profiled: rows, mapped fields, overall promotion lift, the spec drafted from each."""
+        from sdlc import analysis
+
+        _, state = _state()
+        return [{k: d.get(k) for k in ("name", "title", "source", "rows", "fields", "overall", "spec_id", "error")} for d in analysis.summaries(state)]
+
+    @mcp.tool(name="analyze_dataset")
+    def analyze_dataset(name: str) -> dict[str, Any]:
+        """Promotion effectiveness for one dataset: products to promote, promotions to stop, breakdown by region and customer segment, and the method. Read-only; drafting a spec from it needs the project owner (or autopilot)."""
+        from sdlc import analysis
+
+        path = analysis.dataset_path(name)
+        if path is None:
+            raise ToolError(f"No dataset named {name}.")
+        return analysis.analyze(path)
+
     @mcp.tool(name="list_agents")
     def list_agents() -> dict[str, Any]:
         """The stage agents (spec, dev, test, debug, deploy, status), what each may read, and their last runs.

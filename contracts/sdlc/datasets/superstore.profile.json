@@ -1,0 +1,24 @@
+{
+  "title": "Superstore retail orders (US, 2014–2017)",
+  "source": {
+    "name": "Hugging Face · 1gichukimba/superstores",
+    "url": "https://huggingface.co/datasets/1gichukimba/superstores",
+    "license": "MIT",
+    "note": "A public mirror of the Tableau Sample Superstore dataset: 9,994 order lines from a US office-supplies retailer. Used as a stand-in for a CPG client's sales export; the promotion signal is Discount > 0."
+  },
+  "fields": {
+    "order": "Order ID",
+    "date": "Order Date",
+    "product": "Product Name",
+    "category": "Sub-Category",
+    "region": "Region",
+    "segment": "Segment",
+    "units": "Quantity",
+    "revenue": "Sales",
+    "profit": "Profit",
+    "promo": "Discount"
+  },
+  "promo_rule": {"kind": "greater_than", "value": 0},
+  "min_orders": 4,
+  "lift_threshold": 0.15
+}

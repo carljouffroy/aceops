@@ -56,6 +56,7 @@
     "depends_on": { "type": "array", "items": { "type": "string", "pattern": "^SPEC-[0-9]{3}$" }, "uniqueItems": true },
     "risks": { "type": "array", "items": { "type": "string" } },
     "client_signoff_required": { "type": "boolean", "description": "True when the work touches the client's ad account, feed or store; gate G4 then needs the client's sign-off." },
+    "analysis": { "type": "object", "description": "Present on specs drafted from a client dataset: dataset name, rows, the recommendations and every figure they use." },
     "approval": { "oneOf": [{ "$ref": "#/$defs/approval" }, { "type": "null" }], "description": "Gate G1. Set only through the admin API, never by the agent." },
     "rejection": {
       "oneOf": [

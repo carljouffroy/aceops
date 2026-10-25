@@ -204,8 +204,11 @@ def is_checked_heading(line: str) -> bool:
 
 
 def checked_text(draft: str) -> str:
-    """Everything the builder wrote: all sections except the ones that quote the client or the template."""
-    keep, on = [], True
+    """Everything the builder wrote: all sections except the ones that quote the client or the template.
+
+    The title block before the first heading is template text and is not checked.
+    """
+    keep, on = [], False
     for line in draft.splitlines():
         if line.startswith("## "):
             on = is_checked_heading(line)
@@ -222,6 +225,13 @@ def precheck(ticket: dict, draft: str | None, answers: dict[str, str | None]) ->
     client_numbers = set()
     for text in answers.values():
         client_numbers |= _numbers(text or "")
+    if ticket.get("analysis"):
+        # Data-driven tickets: the client's figures are the dataset's, kept on the ticket,
+        # plus the digits inside the product and category names from the same file.
+        p = ticket["analysis"]
+        client_numbers |= {round(float(v), 4) for v in p.get("figures", [])}
+        for text in (ticket.get("client_answer"), ticket.get("title"), p.get("product"), p.get("category"), *(p.get("regions") or []), *(p.get("segments") or [])):
+            client_numbers |= _numbers(str(text or ""))
     results = []
     for criterion in ticket["acceptance_criteria"]:
         result, note = "needs_human", "A reviewer must confirm this."
@@ -243,6 +253,12 @@ def precheck(ticket: dict, draft: str | None, answers: dict[str, str | None]) ->
                     result, note = "met", f"All {len(used)} figure(s) in the working draft trace to client answers."
         if criterion["text"].startswith("Break-even ROAS") and ticket["source_item_id"] == "R3":
             note = _breakeven_note(answers) or note
+        if how == "agent_check" and ticket.get("analysis") and criterion["text"].startswith("No promotion is recommended"):
+            p = ticket["analysis"]
+            if p.get("kind") == "promote" and p.get("profit_promo") is not None and p["profit_promo"] < 0:
+                result, note = "not_met", f"Profit per promoted order is {p['profit_promo']}; this promotion loses money."
+            else:
+                result, note = "met", f"Profit per promoted order is {p.get('profit_promo') if p.get('profit_promo') is not None else 'not in the file'}; guard holds."
         results.append({**criterion, "result": result, "note": note})
     return results
 
