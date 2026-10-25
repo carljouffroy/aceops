@@ -1,0 +1,7 @@
+{
+  "url": "http://host.openshell.internal:28791/mcp",
+  "transport": "streamable-http",
+  "enabled": true,
+  "connectionTimeoutMs": 10000,
+  "requestTimeoutMs": 60000
+}

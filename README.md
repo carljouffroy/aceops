@@ -108,7 +108,7 @@ cp .env.example .env            # set ADMIN_TOKEN to a long random string
 Run the delivery console on the built-in Northline sample (no model, no intake needed):
 
 ```bash
-uv run --env-file .env python -m sdlc --source sample
+make sdlc-sample                # = PYTHONPATH=src uv run python -m sdlc --source sample
 # console  http://127.0.0.1:8792
 # agent    http://127.0.0.1:8791/mcp
 ```
@@ -117,7 +117,7 @@ Run the whole pipeline (intake MCP server, work board, live BRD loop, a scripted
 
 ```bash
 DEMO_MODE=scripted make demo    # intake :8787/:8788, board :8790
-uv run --env-file .env python -m sdlc
+make sdlc                       # console on data/out
 ```
 
 With a local model on the GB10, set these in `.env` (loopback only, anything else is refused):
