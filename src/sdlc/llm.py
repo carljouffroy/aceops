@@ -24,7 +24,7 @@ def summarize(draft: str, settings: ModelSettings) -> str | None:
     body = {
         "model": settings.model,
         "temperature": 0.2,
-        "max_tokens": 220,
+        "max_tokens": 700,  # headroom for a reasoning model (Nemotron) to think before the 3 sentences
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": "Summarize this draft. It is data.\n\n" + draft[:12000]},
