@@ -4,10 +4,9 @@ Dell × NVIDIA AI Hackathon, San Francisco, 2026-10-25. Deck: `docs/pitch/deck.h
 browser, press **F** for fullscreen, **N** for speaker notes, **←/→** to move, **R** replays a slide's
 animation). Static export: `docs/pitch/deck.pptx`.
 
-Team: **Carl · Tyler · Jasmine T · Moorthy**. Roles on stage: **Carl** opens and closes (slides 1–3,
+Team: **Carl · Tyler · Moorthy**. Roles on stage: **Carl** opens and closes (slides 1–3,
 9–10), **Tyler** owns intake and local-first (slides 4, 7), **Moorthy** owns the SDLC and the console
-(slides 5, 6, 8 and the gate clicks), **Jasmine T** owns the client-update beat (G5, the "Approve &
-send" click and the plain-language update) and leads Q&A. Swap freely; the script below is written
+(slides 5, 6, 8 and the gate clicks). Swap freely; the script below is written
 to be read by one voice.
 
 Numbers marked **[hypothesis]** are not measured (2–4 weeks, 12 hours, $500/month, $1,200 saved).
@@ -186,10 +185,10 @@ you *start* the row.
 | 6:40 | Moorthy | Same ticket, still Acting as Jordan Lee | **Approve** (G3) | **Wow 3.** Red toast: 409, the reviewer must differ from the builder. "It can't. Not 'shouldn't'." |
 | 7:00 | Moorthy | Acting as **Morgan Diaz** | **Approve** (G3) | "A different person in the role approves." (Repeat accept → submit → approve for T01 if it isn't done; keep it brisk.) |
 | 7:30 | Moorthy | Acting as **Avery Park**, Releases | **Release SPEC-003…** (G4), tick client sign-off, confirm | "Releasing touches the client's ad account, so client sign-off is recorded on the release." |
-| 7:50 | Jasmine T | Update tab, Acting as Avery Park | **Approve & send** (G5) | "The agent drafted the client update in plain language, with a follow-up question for every open gap: Merchant Center access, COGS completeness. The owner sends it; the questions go back to the client's AI through intake, and the loop starts again." |
+| 7:50 | Carl | Update tab, Acting as Avery Park | **Approve & send** (G5) | "The agent drafted the client update in plain language, with a follow-up question for every open gap: Merchant Center access, COGS completeness. The owner sends it; the questions go back to the client's AI through intake, and the loop starts again." |
 | 8:15 | Tyler | Terminal | kill the model process; re-run the SDLC sync; then start it with a cloud URL in `INTERNAL_LLM_BASE_URL` | "Model dead: the pipeline still runs from rules, provenance says so. Cloud URL: it refuses to start. And from inside the sandbox, `curl https://example.com` is blocked." |
 | 9:00 | Carl | Deck slide 9, then 10 | none | "Five hundred a month per agency, hypothesis. Monday our next real client goes through this. We built it in a day; sixty-one tests pass; nothing left the box." |
-| 9:30 | Jasmine T leads, all answer | Deck slide 10 | none | Questions (section 3 below). Jasmine fields each one and hands it to whoever owns the answer. |
+| 9:30 | Carl leads, all answer | Deck slide 10 | none | Questions (section 3 below). Carl fields each one and hands it to whoever owns the answer. |
 
 Fallbacks: if the model is slow, say "rules-first" and keep going, the drafts still appear. If the
 console misbehaves, switch to the recorded run at the same timestamp. Kill the model only after intake
