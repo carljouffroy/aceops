@@ -127,7 +127,7 @@ and a break-even table. That sells without SDLC; SDLC makes it recurring.
 
 ## 9. Run-of-show
 
-**10 minutes.** Carl opens and closes, Tyler drives intake and board, Moorthy drives SDLC, Jasmine T takes the client-update and Q&A beats. * = needs
+**10 minutes.** Carl opens and closes, Tyler drives intake and board, Moorthy drives SDLC. * = needs
 the SDLC slice; if it misses 5:00, show the break-even table from a script and drop the 409.
 
 | Time | Click | Say |
