@@ -191,7 +191,7 @@ scripts/run_demo.sh one-command pipeline demo
 
 - **Event:** Dell × NVIDIA AI Hackathon, San Francisco, 25 October 2026. Brief: an always-on agent for work that runs locally and a company would pay for. Judged on technical execution, business value, local-first design, demo quality.
 - **Stack declared:** Python 3.12, FastAPI, the official MCP Python SDK, SQLite, a local OpenAI-compatible model server on the GB10, and NVIDIA OpenShell via NemoClaw for the agent sandbox. We declare only what we run; see the runbook for the exact runtime on the box.
-- **Team:** Carl Jouffroy, Tyler Fabela, Moorthy (ACE).
+- **Team:** Carl Jouffroy, Tyler Fabela, Jasmine T, Moorthy (ACE).
 - **Demo data:** the client, people and figures are fictional. The repository holds the generic checklist only; no client checklist or document is committed.
 - **Deck:** [`docs/pitch/deck.html`](docs/pitch/deck.html) (open locally, arrow keys to navigate) · [`docs/pitch/storyboard.md`](docs/pitch/storyboard.md) · [`docs/pitch/office-hours.md`](docs/pitch/office-hours.md).
 
