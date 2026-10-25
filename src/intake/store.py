@@ -19,15 +19,6 @@ CREATE TABLE IF NOT EXISTS clients (
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS answers (
-    client_id TEXT NOT NULL,
-    item_id TEXT NOT NULL,
-    status TEXT NOT NULL,
-    value TEXT NOT NULL,
-    reason_if_na TEXT,
-    created_at TEXT NOT NULL,
-    PRIMARY KEY (client_id, item_id)
-);
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id TEXT NOT NULL,
@@ -36,6 +27,24 @@ CREATE TABLE IF NOT EXISTS events (
     created_at TEXT NOT NULL
 );
 """
+
+ANSWERS_SCHEMA = """
+CREATE TABLE answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    value TEXT NOT NULL,
+    reason_if_na TEXT,
+    answered_by TEXT NOT NULL CHECK (answered_by IN ('client', 'client_ai')),
+    client_ai_name TEXT,
+    source TEXT NOT NULL DEFAULT 'mcp',
+    created_at TEXT NOT NULL
+);
+CREATE INDEX idx_answers_client_item_id ON answers (client_id, item_id, id);
+"""
+
+ANSWERED_BY = ("client", "client_ai")
 
 
 def hash_token(token: str) -> str:
@@ -46,6 +55,20 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _answer_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "item_id": row["item_id"],
+        "status": row["status"],
+        "value": row["value"],
+        "reason_if_na": row["reason_if_na"],
+        "answered_by": row["answered_by"],
+        "client_ai_name": row["client_ai_name"],
+        "source": row["source"],
+        "ts": row["created_at"],
+    }
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -53,6 +76,7 @@ class Database:
         self._lock = threading.Lock()
         with self.transaction() as conn:
             conn.executescript(SCHEMA)
+            self._migrate_answers(conn)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, check_same_thread=False)
@@ -117,10 +141,35 @@ class Database:
             rows = conn.execute("SELECT token_hash FROM clients").fetchall()
         return any(row["token_hash"] == token for row in rows)
 
+    def _migrate_answers(self, conn: sqlite3.Connection) -> None:
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(answers)").fetchall()]
+        if not columns:
+            conn.executescript(ANSWERS_SCHEMA)
+            return
+        if "id" in columns and "answered_by" in columns:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_answers_client_item_id ON answers (client_id, item_id, id)"
+            )
+            return
+        conn.execute("ALTER TABLE answers RENAME TO answers_legacy")
+        conn.executescript(ANSWERS_SCHEMA)
+        conn.execute(
+            """
+            INSERT INTO answers (
+                client_id, item_id, status, value, reason_if_na,
+                answered_by, client_ai_name, source, created_at
+            )
+            SELECT client_id, item_id, status, value, reason_if_na,
+                   'client_ai', NULL, 'mcp', created_at
+            FROM answers_legacy
+            """
+        )
+        conn.execute("DROP TABLE answers_legacy")
+
     def answered_ids(self, client_id: str) -> set[str]:
         with self.transaction() as conn:
             rows = conn.execute(
-                "SELECT item_id FROM answers WHERE client_id = ?",
+                "SELECT DISTINCT item_id FROM answers WHERE client_id = ?",
                 (client_id,),
             ).fetchall()
         return {str(row["item_id"]) for row in rows}
@@ -132,55 +181,101 @@ class Database:
         status: str,
         value: str,
         reason_if_na: str | None,
-    ) -> None:
-        """Persist value unchanged. The text is not parsed or executed."""
+        answered_by: str = "client_ai",
+        client_ai_name: str | None = None,
+        source: str = "mcp",
+    ) -> int:
+        """Append one row. The value is stored unchanged and is never executed."""
+        if answered_by not in ANSWERED_BY:
+            raise ValueError("answered_by must be client or client_ai")
         created = _now()
+        name = client_ai_name.strip() if isinstance(client_ai_name, str) and client_ai_name.strip() else None
         payload = json.dumps(
             {
                 "item_id": item_id,
                 "status": status,
                 "value": value,
                 "reason_if_na": reason_if_na,
+                "answered_by": answered_by,
+                "client_ai_name": name,
+                "source": source,
             },
             ensure_ascii=False,
         )
         with self.transaction() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 """
-                INSERT INTO answers (client_id, item_id, status, value, reason_if_na, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO answers (
+                    client_id, item_id, status, value, reason_if_na,
+                    answered_by, client_ai_name, source, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (client_id, item_id, status, value, reason_if_na, created),
+                (client_id, item_id, status, value, reason_if_na, answered_by, name, source, created),
             )
             conn.execute(
                 "INSERT INTO events (client_id, kind, payload, created_at) VALUES (?, ?, ?, ?)",
                 (client_id, "answer_submitted", payload, created),
             )
+            return int(cursor.lastrowid)
 
     def answers_for(self, client_id: str) -> list[dict[str, Any]]:
+        """Latest row for each item this client has answered."""
         with self.transaction() as conn:
             rows = conn.execute(
                 """
-                SELECT item_id, status, value, reason_if_na, created_at
-                FROM answers
-                WHERE client_id = ?
-                ORDER BY created_at, item_id
+                SELECT a.id, a.item_id, a.status, a.value, a.reason_if_na,
+                       a.answered_by, a.client_ai_name, a.source, a.created_at
+                FROM answers a
+                INNER JOIN (
+                    SELECT item_id, MAX(id) AS id
+                    FROM answers
+                    WHERE client_id = ?
+                    GROUP BY item_id
+                ) latest ON a.id = latest.id
+                WHERE a.client_id = ?
+                ORDER BY a.id
                 """,
-                (client_id,),
+                (client_id, client_id),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [_answer_row(row) for row in rows]
 
-    def events_for(self, client_id: str) -> list[dict[str, Any]]:
+    def answer_history(self, client_id: str) -> list[dict[str, Any]]:
         with self.transaction() as conn:
             rows = conn.execute(
                 """
-                SELECT id, kind, payload, created_at
-                FROM events
+                SELECT id, item_id, status, value, reason_if_na,
+                       answered_by, client_ai_name, source, created_at
+                FROM answers
                 WHERE client_id = ?
                 ORDER BY id
                 """,
                 (client_id,),
             ).fetchall()
+        return [_answer_row(row) for row in rows]
+
+    def events_for(self, client_id: str, since: int | None = None) -> list[dict[str, Any]]:
+        with self.transaction() as conn:
+            if since is None:
+                rows = conn.execute(
+                    """
+                    SELECT id, kind, payload, created_at
+                    FROM events
+                    WHERE client_id = ?
+                    ORDER BY id
+                    """,
+                    (client_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT id, kind, payload, created_at
+                    FROM events
+                    WHERE client_id = ? AND id > ?
+                    ORDER BY id
+                    """,
+                    (client_id, since),
+                ).fetchall()
         events: list[dict[str, Any]] = []
         for row in rows:
             events.append(

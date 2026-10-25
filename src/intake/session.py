@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sqlite3
 from typing import Any, Literal
 
 from intake.bundle import Bundle
@@ -52,24 +51,33 @@ def submit_answer(
     status: str,
     value: str,
     reason_if_na: str | None = None,
+    client_ai_name: str | None = None,
 ) -> dict[str, Any]:
     if status not in STATUSES:
         raise IntakeError("status must be DONE, PROVIDED, or N/A.")
     if not isinstance(value, str):
         raise IntakeError("value must be text.")
+    if bundle.by_id(item_id) is None:
+        raise IntakeError("Unknown item.")
     if status == "N/A":
         if reason_if_na is None or not reason_if_na.strip():
             raise IntakeError("reason_if_na is required when status is N/A.")
         reason: str | None = reason_if_na
     else:
         reason = None
-    current = get_next_item(db, bundle, client_id)
-    if current.get("done"):
-        raise IntakeError("Intake is already finished.")
-    if item_id != current["id"]:
-        raise IntakeError("That item is not the open item.")
-    try:
-        db.insert_answer(client_id, item_id, status, value, reason)
-    except sqlite3.IntegrityError:
-        raise IntakeError("That item is already answered.") from None
-    return {"ok": True, "item_id": item_id, "status": status}
+    already = item_id in db.answered_ids(client_id)
+    if not already:
+        current = get_next_item(db, bundle, client_id)
+        if current.get("done") or item_id != current["id"]:
+            raise IntakeError("That item is not the open item.")
+    db.insert_answer(
+        client_id,
+        item_id,
+        status,
+        value,
+        reason,
+        answered_by="client_ai",
+        client_ai_name=client_ai_name,
+        source="mcp",
+    )
+    return {"ok": True, "item_id": item_id, "status": status, "answered_by": "client_ai"}
