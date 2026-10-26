@@ -207,9 +207,11 @@ has finished: the client agent fails closed.
    can sign their own work.
 
 1. **"Where exactly are NemoClaw, OpenClaw or OpenShell in this?"**
-   The always-on loops (the internal agent, the client agent and the SDLC service) run inside an
-   OpenShell sandbox with a localhost-only egress policy, which is why the blocked `curl` is part of
-   the demo. We claim the runtime we actually run and nothing more.
+   NemoClaw manages an OpenShell sandbox on the GB10 with OpenClaw as the agent, and OpenClaw is
+   registered against our intake and SDLC MCP servers through a loopback bridge: it can read the BRD,
+   list specs and tickets and run a pre-check, and it has no approve, release or send tool, because
+   those don't exist on that server. The model behind all of it is Nemotron 3 Nano 30B via Ollama on
+   the same box. We claim the runtime we actually run and nothing more.
 
 2. **"The client's AI is probably ChatGPT. How is that local-first?"**
    The client decides what its own assistant sees; that's their data and their choice. The

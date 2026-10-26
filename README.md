@@ -108,7 +108,7 @@ Design rules the code enforces:
 | No data leaves the box | every server binds `127.0.0.1`; the console answers only to loopback `Host` headers (`421` otherwise), is served with `X-Frame-Options: DENY` and a `Content-Security-Policy` header of `default-src 'none'; connect-src 'self'; frame-ancestors 'none'`; no external fonts, scripts or images anywhere | DevTools → Network and Response headers while clicking through the demo |
 | Model is on the GPU | OpenAI-compatible local server (Ollama / vLLM / NIM) on the GB10 | `nvidia-smi` during a run; `ss -tnp` shows only loopback |
 | Works offline | rules-first generation; `DEMO_MODE=scripted` and the sample source need no model at all | pull the network cable |
-| Sandboxed agent | OpenClaw runs in an OpenShell sandbox via NemoClaw with loopback-only egress ([runbook](docs/sdlc/gb10-runbook.md)) | one blocked outbound request in the sandbox log |
+| Sandboxed agent | OpenClaw runs in a NemoClaw-managed OpenShell sandbox and reaches only our two MCP servers through the bridge ([runbook](docs/sdlc/gb10-runbook.md)) | `openclaw mcp status --verbose` listing our 13 read-only tools; one blocked outbound request in the sandbox log |
 
 ## Quickstart
 
@@ -206,7 +206,7 @@ scripts/run_demo.sh one-command pipeline demo
 ## Hackathon notes
 
 - **Event:** Dell × NVIDIA AI Hackathon, San Francisco, 25 October 2026. Brief: an always-on agent for work that runs locally and a company would pay for. Judged on technical execution, business value, local-first design, demo quality.
-- **Stack declared:** Python 3.12, FastAPI, the official MCP Python SDK, SQLite, a local OpenAI-compatible model server on the GB10, and NVIDIA OpenShell via NemoClaw for the agent sandbox. We declare only what we run; see the runbook for the exact runtime on the box.
+- **Stack on the GB10:** NemoClaw 0.0.137 managing an OpenShell 0.0.116 sandbox with OpenClaw as the agent; OpenClaw is registered against our intake (`:8787/mcp`) and SDLC (`:8791/mcp`) MCP servers through the loopback bridge in `src/sdlc/runtime/`; Nemotron 3 Nano 30B served locally by Ollama at `127.0.0.1:11434`. App side: Python 3.12, FastAPI, the official MCP Python SDK, SQLite. Setup steps are in the [runbook](docs/sdlc/gb10-runbook.md).
 - **Team:** Carl Jouffroy, Tyler Fabela, Moorthy (ACE).
 - **Demo data:** the client, people and figures are fictional. The repository holds the generic checklist only; no client checklist or document is committed.
 - **Deck:** [`docs/pitch/deck.html`](docs/pitch/deck.html) (download and open in a browser; arrow keys, `N` for notes) · [`docs/pitch/deck.pptx`](docs/pitch/deck.pptx) · [`docs/pitch/storyboard.md`](docs/pitch/storyboard.md) · [`docs/pitch/office-hours.md`](docs/pitch/office-hours.md).
