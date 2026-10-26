@@ -25,6 +25,7 @@
   <a href="#quickstart">Quickstart</a> ·
   <a href="#agent-tools">Agent tools</a> ·
   <a href="docs/pitch/deck.html">Pitch deck</a> ·
+  <a href="docs/pitch/aceops-demo-final.mp4">Demo video (75 s)</a> ·
   <a href="docs/pitch/storyboard.md">3-minute storyboard</a>
 </p>
 
@@ -209,6 +210,7 @@ scripts/run_demo.sh one-command pipeline demo
 - **Stack on the GB10:** NemoClaw 0.0.137 managing an OpenShell 0.0.116 sandbox with OpenClaw as the agent; OpenClaw is registered against our intake (`:8787/mcp`) and SDLC (`:8791/mcp`) MCP servers through the loopback bridge in `src/sdlc/runtime/`; Nemotron 3 Nano 30B served locally by Ollama at `127.0.0.1:11434`. App side: Python 3.12, FastAPI, the official MCP Python SDK, SQLite. Setup steps are in the [runbook](docs/sdlc/gb10-runbook.md).
 - **Team:** Carl Jouffroy, Tyler Fabela, Moorthy (ACE).
 - **Demo data:** the client, people and figures are fictional. The repository holds the generic checklist only; no client checklist or document is committed.
+- **Demo video:** [`docs/pitch/aceops-demo-final.mp4`](docs/pitch/aceops-demo-final.mp4) (75 s, 1080p: the GB10, then the product through every gate, with the team speaking; rebuilt by `scripts/demo_video/final_cut.sh`). Music: "Inspired" by Kevin MacLeod (incompetech.com), CC BY 4.0.
 - **Deck:** [`docs/pitch/deck.html`](docs/pitch/deck.html) (download and open in a browser; arrow keys, `N` for notes) · [`docs/pitch/deck.pptx`](docs/pitch/deck.pptx) · [`docs/pitch/storyboard.md`](docs/pitch/storyboard.md) · [`docs/pitch/office-hours.md`](docs/pitch/office-hours.md).
 
 ## What's next

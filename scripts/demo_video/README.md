@@ -5,7 +5,7 @@
 | `docs/pitch/product-demo.mp4` + `.segments.json` | `record_product.py` | the full tour, ~3.9 min, headless console at 1600x900 |
 | `docs/pitch/product-demo-60s.mp4` + `.segments.json` | `record_product.py --cut 60s` | the same tour, ~70 s |
 | `docs/pitch/aceops-demo.mp4` | `compose.sh` | full product + presenters in a circle + their audio |
-| `docs/pitch/aceops-demo-final.mp4` | `assemble.sh` | GB10 clip, then the 60 s product cut, presenters' circle over both |
+| `docs/pitch/aceops-demo-final.mp4` | `final_cut.sh` | **the final cut**: title card, GB10 footage, ten product jump cuts with lower thirds, presenters' circle, end card, music |
 
 Everything runs on this Mac with `uv`, Playwright (Chromium) and `/opt/homebrew/bin/ffmpeg`.
 
@@ -102,3 +102,16 @@ ffmpeg -y -f lavfi -i testsrc2=size=1280x720:rate=30  -f lavfi -i sine=frequency
 scripts/demo_video/compose.sh  scripts/demo_video/out/cam-test.mp4 docs/pitch/product-demo.mp4 scripts/demo_video/out/compose-test.mp4
 scripts/demo_video/assemble.sh scripts/demo_video/out/gb10-test.mp4 scripts/demo_video/out/cam2-test.mp4 scripts/demo_video/out/assemble-test.mp4
 ```
+
+## 4. Final cut (what is in the repo)
+
+```sh
+scripts/demo_video/final_cut.sh                 # -> docs/pitch/aceops-demo-final.mp4 (+ a copy at ../ACE-Ops-demo.mp4)
+PREVIEW=1 LIMIT=10 scripts/demo_video/final_cut.sh   # fast, low-quality 10 s test
+```
+
+Inputs (override with env vars): `CAMERA` (the presenters' take, master clock), `GB10` (Tyler's
+GB10 footage), `PRODUCT`/`SEGMENTS` (the 60 s product cut and its step table), `MUSIC`.
+`render_cards.py` (Pillow) draws the caption bars, the end card and the circle masks, because
+the Homebrew ffmpeg has no `drawtext`. Music: "Inspired" by Kevin MacLeod (incompetech.com),
+CC BY 4.0.
