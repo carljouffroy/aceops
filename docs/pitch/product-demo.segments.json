@@ -1,0 +1,86 @@
+[
+  {
+    "step": 1,
+    "title": "This is the real product, running now",
+    "start": 2.03,
+    "end": 18.16,
+    "ok": true
+  },
+  {
+    "step": 2,
+    "title": "G1 · The project owner approves a spec",
+    "start": 18.16,
+    "end": 30.58,
+    "ok": true
+  },
+  {
+    "step": 3,
+    "title": "G2 · A person in the role accepts the ticket",
+    "start": 30.58,
+    "end": 43.06,
+    "ok": true
+  },
+  {
+    "step": 4,
+    "title": "Build · Read the draft, then submit it",
+    "start": 43.06,
+    "end": 59.56,
+    "ok": true
+  },
+  {
+    "step": 5,
+    "title": "G3 · The 409: nobody approves their own work",
+    "start": 59.56,
+    "end": 73.96,
+    "ok": true
+  },
+  {
+    "step": 6,
+    "title": "G3 · A different person in the role approves",
+    "start": 73.96,
+    "end": 84.51,
+    "ok": true
+  },
+  {
+    "step": 7,
+    "title": "The money moment · ranked margins and break-even floors",
+    "start": 84.51,
+    "end": 102.88,
+    "ok": true
+  },
+  {
+    "step": 8,
+    "title": "G4 · Release, with the client's sign-off",
+    "start": 102.88,
+    "end": 115.04,
+    "ok": true
+  },
+  {
+    "step": 9,
+    "title": "G5 · Nothing reaches the client without a person",
+    "start": 115.04,
+    "end": 129.27,
+    "ok": true
+  },
+  {
+    "step": 10,
+    "title": "Data room · a client's sales export becomes a promotion plan",
+    "start": 129.27,
+    "end": 147.49,
+    "ok": true
+  },
+  {
+    "step": 11,
+    "title": "Autopilot · seven isolated agents finish the rest",
+    "start": 147.49,
+    "end": 185.43,
+    "ok": true
+  },
+  {
+    "step": 12,
+    "title": "That's the product",
+    "start": 185.43,
+    "end": 197.51,
+    "ok": true
+  }
+]
